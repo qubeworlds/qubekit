@@ -70,9 +70,9 @@ function restoreProject() {
 function reset() {
   assembly = { id: 'preview', name: 'preview', rev: 0, parts: [], connections: [], controllers: [] };
   nextId = 1; lastGearId = null; xCursor = 0; simulating = false;
-  // motor sits coaxial behind the gear it drives (same X/Y, offset in Z), not
-  // off to the side — its output shaft is on the gear's axis.
-  const motor = addPart('motor', [0, 0, -8]);
+  // motor sits coaxial behind the gear it drives (same X/Y, offset in Z), its
+  // shaft on the gear's axis. (can motor is 30 mm long → centre ~17 mm back.)
+  const motor = addPart('motor', [0, 0, -17]);
   const g0 = addPart('gear12', [0, 0, 0]);
   connect(motor, 'out', g0, 'c', 'fixed');
   lastGearId = g0; xCursor = 0;
@@ -143,10 +143,11 @@ function setMode(sim) {
 $('mBuild').onclick = () => setMode(false);
 $('mSim').onclick = () => setMode(true);
 
-const PALETTE = { gear: 'gear24', wheel: 'gear36', axle: 'gear8', pinion: 'gear12' };
+const PALETTE = { gear8: 'gear8', gear12: 'gear12', gear24: 'gear24', gear36: 'gear36' };
 document.querySelectorAll('#palette button').forEach((b) => {
-  b.onclick = () => { const p = b.dataset.part; if (p === 'motor') { reset(); setMode(false); setStatus('reset'); } else addGear(PALETTE[p] || 'gear24'); };
+  b.onclick = () => addGear(PALETTE[b.dataset.part] || 'gear24');
 });
+$('reset').onclick = () => { localStorage.removeItem(STORE_KEY); reset(); setMode(false); setStatus('reset'); };
 
 // ── engine boot ──────────────────────────────────────────────────────────────
 const CDN = 'https://cdn.qubeworlds.com';
@@ -195,6 +196,8 @@ function provideMeshes() {
     onAbort: (w) => { log('err', '[ABORT] ' + w); setStatus('engine aborted'); },
     onRuntimeInitialized: () => {
       provideMeshes();
+      // clean stage: no reference grid / gizmo chrome
+      window.Module.ccall('quine_set_config', null, ['string'], [JSON.stringify({ preferences: { grid: false, gizmo: false } })]);
       window.Module.ccall('quine_enqueue', null, ['string'], [JSON.stringify({ type: 'scene', json: buildScene() })]);
       window.Module.ccall('quine_set_autoplay', null, ['number'], [1]);
       window.Module.ccall('quine_set_hud', null, ['number'], [0]);

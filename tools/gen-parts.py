@@ -102,15 +102,15 @@ def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out = os.path.join(root, "apps/preview/parts"); os.makedirs(out, exist_ok=True)
     parts = {}
-    # all sizes in MILLIMETRES (module 1 mm). gear z=12 → 12 mm pitch, 14 mm outer.
+    # Realistic millimetre sizes (module 1 mm). gear z=12 → 12 mm pitch, 14 mm outer.
     for t in (8, 12, 24, 36): parts[f"gear{t}"] = gear(t)
-    parts["axle"]  = cylinder(1.5, 28)   # 3 mm shaft, 28 mm long
-    parts["wheel"] = cylinder(11, 6)     # 22 mm wheel, 6 mm wide
-    parts["motor"] = box(6, 6, 4)        # 12 x 12 x 8 mm housing
-    parts["beam3"] = box(12, 2, 2)       # 24 mm beam (holes at 8 mm pitch)
-    parts["beam5"] = box(20, 2, 2)       # 40 mm
-    parts["beam7"] = box(28, 2, 2)       # 56 mm
-    parts["pin"]   = cylinder(2.5, 12)   # 5 mm pin
+    parts["motor"] = cylinder(9, 30)     # Ø18 x 30 mm can motor (shaft along Z, into the gear)
+    parts["axle"]  = cylinder(2, 32)     # Ø4 x 32 mm shaft
+    parts["wheel"] = cylinder(15, 8)     # Ø30 x 8 mm wheel
+    parts["beam3"] = box(12, 4, 4)       # 24 x 8 x 8 mm beam (holes at 8 mm pitch)
+    parts["beam5"] = box(20, 4, 4)       # 40 mm
+    parts["beam7"] = box(28, 4, 4)       # 56 mm
+    parts["pin"]   = cylinder(2.5, 16)   # Ø5 x 16 mm pin
     for name, m in parts.items():
         open(os.path.join(out, name + ".obj"), "w").write(m.obj())
     print(f"wrote {len(parts)} parts → apps/preview/parts/:", ", ".join(sorted(parts)))
