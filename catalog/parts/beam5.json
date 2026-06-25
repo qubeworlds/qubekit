@@ -5,23 +5,10 @@
   "mass": 0.012,
   "material": "plastic",
   "ports": [
-    {
-      "id": "hole0",
-      "type": "pin_socket",
-      "localPos": [0.0, 0.0, 0.0],
-      "localAxis": [1, 0, 0],
-      "allowedCounterparts": ["pin", "axle", "screw", "sensor_mount"],
-      "tolerance": 0.001,
-      "constraint": "fixed"
-    },
-    {
-      "id": "axle0",
-      "type": "axle_bearing",
-      "localPos": [0.0, 0.0, 0.0],
-      "localAxis": [1, 0, 0],
-      "allowedCounterparts": ["axle", "motor_out", "wheel_hub", "gear_center"],
-      "tolerance": 0.001,
-      "constraint": "hinge"
-    }
+    { "id": "hole0", "type": "pin_socket", "localPos": [-0.016, 0, 0], "localAxis": [0, 0, 1], "allowedCounterparts": ["pin"], "tolerance": 0.001, "constraint": "fixed", "diameter": 0.005 },
+    { "id": "hole1", "type": "pin_socket", "localPos": [-0.008, 0, 0], "localAxis": [0, 0, 1], "allowedCounterparts": ["pin"], "tolerance": 0.001, "constraint": "fixed", "diameter": 0.005 },
+    { "id": "hole2", "type": "pin_socket", "localPos": [0, 0, 0], "localAxis": [0, 0, 1], "allowedCounterparts": ["pin"], "tolerance": 0.001, "constraint": "fixed", "diameter": 0.005 },
+    { "id": "hole3", "type": "pin_socket", "localPos": [0.008, 0, 0], "localAxis": [0, 0, 1], "allowedCounterparts": ["pin"], "tolerance": 0.001, "constraint": "fixed", "diameter": 0.005 },
+    { "id": "hole4", "type": "pin_socket", "localPos": [0.016, 0, 0], "localAxis": [0, 0, 1], "allowedCounterparts": ["pin"], "tolerance": 0.001, "constraint": "fixed", "diameter": 0.005 }
   ]
 }
