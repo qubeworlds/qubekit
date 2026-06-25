@@ -70,7 +70,9 @@ function restoreProject() {
 function reset() {
   assembly = { id: 'preview', name: 'preview', rev: 0, parts: [], connections: [], controllers: [] };
   nextId = 1; lastGearId = null; xCursor = 0; simulating = false;
-  const motor = addPart('motor', [-10, 0, -9]);
+  // motor sits coaxial behind the gear it drives (same X/Y, offset in Z), not
+  // off to the side — its output shaft is on the gear's axis.
+  const motor = addPart('motor', [0, 0, -8]);
   const g0 = addPart('gear12', [0, 0, 0]);
   connect(motor, 'out', g0, 'c', 'fixed');
   lastGearId = g0; xCursor = 0;
@@ -99,12 +101,13 @@ function addGear(type) {
 }
 
 function baseEntities() {
-  const w = Math.max(22, xCursor / 2 + 14); // mm
+  // Frame the mm-scale train: distance just larger than the train half-span +
+  // the biggest gear radius, so the gears fill the view (not tiny).
+  const span = xCursor + 40;
   return [
-    { name: 'camera', camera: { fovY: 0.85, near: 0.5, far: 2000, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 36 + xCursor * 0.7, yaw: 0.6, pitch: 0.38 } } },
+    { name: 'camera', camera: { fovY: 0.85, near: 0.2, far: 2000, controller: { kind: 'orbit', target: [xCursor / 2, 0, -3], distance: span * 0.85, yaw: 0.5, pitch: 0.35 } } },
     { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 3.6, direction: [-0.5, -0.85, -0.45] } },
     { name: 'env', environment: { sky: { zenith: [0.015, 0.017, 0.022], horizon: [0.05, 0.055, 0.07] }, ambient: { color: [0.55, 0.60, 0.72], intensity: 0.28 } } },
-    { name: 'frame', transform: { position: [xCursor / 2, -8, -3] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [w, 1.2, 3], color: [0.10, 0.11, 0.14] }] } },
   ];
 }
 function partEntity(pi, w) {
