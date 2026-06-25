@@ -1,0 +1,12 @@
+{
+  $schema: "https://q64.dev/schema/qube.json5",
+  // snake_case dotted segments, no dashes.
+  name: "qubeworlds.qubekit.preview",
+  version: "0.0.1",
+  license: "MIT OR Apache-2.0",
+  description: "QubeKit preview — the editor shell. A static-asset qube: web/index.html loads the shared quine 3D engine from the CDN and shows the QubeKit editor chrome. No q64 compile, no component, no backend (like blackbird / qube_rocks).",
+
+  // Static-site qube: `qube deploy` ships the web/ tree as the pod's public
+  // assets. `notFound: single-page-application` serves index.html for unmatched routes.
+  static: { dir: "web", notFound: "single-page-application" },
+}

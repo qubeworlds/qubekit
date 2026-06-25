@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>QubeKit — preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #07090d; color: #e6edf3;
+    font: 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow: hidden; }
+  #app { position: fixed; inset: 0; }
+  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; display: block; touch-action: none; }
+
+  /* top bar */
+  #bar { position: absolute; top: 0; left: 0; right: 0; height: 52px; z-index: 20;
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    background: linear-gradient(#0b0f16ee, #0b0f1699); border-bottom: 1px solid #1c2330; backdrop-filter: blur(8px); }
+  #bar .brand { font-weight: 700; letter-spacing: .3px; }
+  #bar .brand b { color: #7fb2ff; }
+  #bar .sp { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid #2a4a63; border-radius: 9px; overflow: hidden; }
+  .seg button { background: #0d1117; color: #cfe8ff; border: 0; padding: 8px 16px; font: inherit; cursor: pointer; min-width: 92px; }
+  .seg button[aria-pressed="true"] { background: #1d3a52; color: #fff; }
+  #status { color: #7f8ea3; font-size: 12px; min-width: 120px; text-align: right; }
+
+  /* parts palette */
+  #palette { position: absolute; top: 64px; left: 12px; z-index: 20; width: 132px;
+    background: #0b0f16d9; border: 1px solid #1c2330; border-radius: 12px; padding: 10px; backdrop-filter: blur(8px); }
+  #palette h3 { margin: 2px 4px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6b7484; }
+  #palette .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #palette button { background: #121a26; color: #d7e3f1; border: 1px solid #243246; border-radius: 10px;
+    padding: 12px 6px; font: inherit; font-size: 12px; cursor: pointer; min-height: 56px; touch-action: manipulation; }
+  #palette button:active { background: #1d3a52; transform: scale(.97); }
+  #palette .hint { margin: 8px 4px 2px; font-size: 11px; color: #6b7484; }
+
+  /* boot log (debug) */
+  #logwrap { position: absolute; right: 12px; bottom: 12px; z-index: 20; width: min(46vw, 420px); }
+  #logtoggle { background: #0d1117; color: #9fb0c2; border: 1px solid #243246; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  #log { display: none; margin-top: 8px; max-height: 38vh; overflow: auto; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+    background: #0a0d12ee; border: 1px solid #1c2330; border-radius: 10px; font: 11px/1.45 ui-monospace, Menlo, monospace; }
+  #log.open { display: block; }
+  .err { color: #ff9b9b; } .ok { color: #8be38b; } .dim { color: #6b7484; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="canvas"></canvas>
+
+  <div id="bar">
+    <div class="brand">Qube<b>Kit</b></div>
+    <div class="seg" role="group" aria-label="mode">
+      <button id="mBuild" aria-pressed="true">Build</button>
+      <button id="mSim" aria-pressed="false">Simulate</button>
+    </div>
+    <div class="sp"></div>
+    <div id="status">booting…</div>
+  </div>
+
+  <div id="palette">
+    <h3>Parts</h3>
+    <div class="grid">
+      <button data-part="beam5">Beam</button>
+      <button data-part="pin">Pin</button>
+      <button data-part="axle">Axle</button>
+      <button data-part="gear24">Gear</button>
+      <button data-part="motor">Motor</button>
+      <button data-part="wheel">Wheel</button>
+    </div>
+    <div class="hint">preview shell — placement wires up next</div>
+  </div>
+
+  <div id="logwrap">
+    <button id="logtoggle">▾ engine log</button>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+  // QubeKit preview shell. Static-asset qube: this page loads the shared quine
+  // engine from the CDN (the SAME loader the world repo's /scene harness uses),
+  // renders a backdrop scene, and shows the QubeKit editor chrome on top. The
+  // sim/overlay/persistence wire in next (Milestone A) — this is the visibility
+  // surface so every commit is watchable on a real device (iPad floor).
+  var $ = function (id) { return document.getElementById(id); };
+  var logEl = $("log");
+  function log(cls, msg) { var s = document.createElement("span"); s.className = cls || ""; s.textContent = msg + "\n"; logEl.appendChild(s); logEl.scrollTop = logEl.scrollHeight; }
+  function setStatus(t) { $("status").textContent = t; }
+
+  $("logtoggle").onclick = function () { logEl.classList.toggle("open"); };
+
+  // mode toggle (chrome only for now)
+  var mode = "build";
+  function setMode(m) {
+    mode = m;
+    $("mBuild").setAttribute("aria-pressed", String(m === "build"));
+    $("mSim").setAttribute("aria-pressed", String(m === "simulate"));
+    setStatus(m === "build" ? "Build mode" : "Simulate mode");
+  }
+  $("mBuild").onclick = function () { setMode("build"); };
+  $("mSim").onclick = function () { setMode("simulate"); };
+  Array.prototype.forEach.call(document.querySelectorAll("#palette button"), function (b) {
+    b.onclick = function () { setStatus("selected " + b.dataset.part + " (placement next)"); };
+  });
+
+  // ── engine boot (WebGL2; the iPad floor) ─────────────────────────────────
+  var P = new URLSearchParams(location.search);
+  var CDN = "https://cdn.qubeworlds.com";
+  var engineBase = (P.get("engine") || CDN + "/engine").replace(/\/+$/, "");
+  var sceneUrl = P.get("url") || CDN + "/scenes/cockpit/scene.json"; // backdrop placeholder
+  var bust = "?v=" + Date.now();
+
+  window.addEventListener("error", function (e) { log("err", "[window] " + (e.message || "") + " " + (e.filename || "") + ":" + (e.lineno || "")); });
+  window.addEventListener("unhandledrejection", function (e) { var r = e.reason; log("err", "[reject] " + ((r && r.stack) ? r.stack : String(r))); });
+
+  function enqueue(o) { try { window.Module.ccall("quine_enqueue", null, ["string"], [JSON.stringify(o)]); } catch (e) { log("err", "[enqueue] " + (e && e.message)); } }
+  function provideAssets(fed) {
+    var M = window.Module;
+    for (var i = 0; i < fed.length; i++) { try { var p = M._malloc(fed[i].data.length); M.HEAPU8.set(fed[i].data, p); M.ccall("quine_provide_asset", null, ["string", "number", "number"], [fed[i].name, p, fed[i].data.length]); M._free(p); } catch (e) { log("err", "[asset] " + fed[i].name + ": " + (e && e.message)); } }
+  }
+  async function fetchScene(url) {
+    var r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("scene HTTP " + r.status);
+    var json = await r.text(); var parsed = JSON.parse(json); var fed = []; var man = parsed.assets || [];
+    for (var i = 0; i < man.length; i++) { var au = new URL(man[i].url, url).href; var ar = await fetch(au + bust); if (ar.ok) fed.push({ name: man[i].name, data: new Uint8Array(await ar.arrayBuffer()) }); else log("err", "[asset fetch] " + man[i].name + " HTTP " + ar.status); }
+    return { json: json, name: parsed.name, fed: fed };
+  }
+
+  (async function boot() {
+    log("dim", "ua: " + navigator.userAgent);
+    setStatus("loading engine…");
+    var sc;
+    try { sc = await fetchScene(sceneUrl); log("ok", "scene ok: " + sc.json.length + "b (+" + sc.fed.length + " assets)"); }
+    catch (e) { log("err", "[scene fetch] " + (e && e.message)); setStatus("scene load failed"); return; }
+
+    window.Module = {
+      canvas: $("canvas"),
+      locateFile: function (p) { return engineBase + "/" + p + bust; },
+      print: function (t) { log("", "engine: " + t); },
+      printErr: function (t) { log("err", "engine[err]: " + t); },
+      onAbort: function (w) { log("err", "[ABORT] " + w); setStatus("engine aborted"); },
+      onRuntimeInitialized: function () {
+        provideAssets(sc.fed);
+        enqueue({ type: "scene", json: sc.json });
+        enqueue({ type: "skill", code: "" });
+        window.Module.ccall("quine_set_autoplay", null, ["number"], [1]);
+        window.Module.ccall("quine_set_hud", null, ["number"], [0]);
+        log("ok", "[runtime ready] scene injected");
+        setMode("build");
+      },
+    };
+    log("dim", "boot: " + engineBase + "/quine-webgl2.js");
+    var s = document.createElement("script");
+    s.async = true; s.crossOrigin = "anonymous"; s.src = engineBase + "/quine-webgl2.js" + bust;
+    s.onerror = function () { log("err", "[engine script failed] " + s.src); setStatus("engine load failed"); };
+    document.head.appendChild(s);
+  })();
+</script>
+</body>
+</html>

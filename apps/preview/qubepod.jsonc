@@ -1,0 +1,13 @@
+{
+  // QubePod deploy manifest for the QubeKit preview (a static-asset qube — no
+  // component). `qube pod deploy` packs assets.directory + this manifest into a
+  // zip and uploads it to qubepods; the server serves web/ as the public tree.
+  "apiVersion": "qubepods.dev/v0.1",
+  "kind": "QubePod",
+  "project": "qubekit",
+  "name": "qubekit-preview",
+  "assets": {
+    "directory": "web",
+    "notFoundHandling": "single-page-application"
+  }
+}
