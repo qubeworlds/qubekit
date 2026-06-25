@@ -101,20 +101,21 @@ function addGear(type) {
 }
 
 function baseEntities() {
-  // Frame the mm-scale train: distance just larger than the train half-span +
-  // the biggest gear radius, so the gears fill the view (not tiny).
-  const span = xCursor + 40;
+  // The train is rendered CENTRED on the origin (see partEntity's −xCursor/2
+  // shift), so the camera target stays put and parts never drift off to +X.
   return [
-    { name: 'camera', camera: { fovY: 0.85, near: 0.2, far: 2000, controller: { kind: 'orbit', target: [xCursor / 2, 0, -3], distance: span * 0.85, yaw: 0.5, pitch: 0.35 } } },
-    { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 3.6, direction: [-0.5, -0.85, -0.45] } },
-    { name: 'env', environment: { sky: { zenith: [0.015, 0.017, 0.022], horizon: [0.05, 0.055, 0.07] }, ambient: { color: [0.55, 0.60, 0.72], intensity: 0.28 } } },
+    { name: 'camera', camera: { fovY: 0.8, near: 0.2, far: 3000, controller: { kind: 'orbit', target: [0, 0, -4], distance: 40 + xCursor * 0.45, yaw: 0.5, pitch: 0.32 } } },
+    { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 4.5, direction: [-0.45, -0.8, -0.5] } },
+    { name: 'fill', light: { kind: 'directional', color: [0.55, 0.66, 0.9], intensity: 1.6, direction: [0.6, -0.25, 0.55] } },
+    { name: 'env', environment: { sky: { zenith: [0.05, 0.06, 0.09], horizon: [0.12, 0.14, 0.18] }, ambient: { color: [0.6, 0.66, 0.8], intensity: 0.6 } } },
   ];
 }
 function partEntity(pi, w) {
   const mat = metalFor(pi);
   return {
     name: 'p' + pi.id,
-    transform: { position: pi.transform.p, rotation: [0, 0, pi.phase ?? 0] },
+    // centre the whole train on the origin so it never drifts off to +X
+    transform: { position: [pi.transform.p[0] - xCursor / 2, pi.transform.p[1], pi.transform.p[2]], rotation: [0, 0, pi.phase ?? 0] },
     geometry: { kind: 'gltf', source: pi.partType + '.obj' },
     material: { color: [...mat.color, 1], metallic: mat.metallic, roughness: mat.roughness, emissive: [0, 0, 0] },
     spin: { velocity: [SPIN_AXIS[0] * w, SPIN_AXIS[1] * w, SPIN_AXIS[2] * w] },
