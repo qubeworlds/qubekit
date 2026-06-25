@@ -7,9 +7,15 @@ colour/metalness comes from the scene entity's material (steel vs brass).
 
 Run: python3 tools/gen-parts.py   →   apps/preview/parts/*.obj
 """
-import math, os, sys
+import math, os, sys, json
 
 TAU = math.pi * 2
+
+def rotx90(m):
+    # rotate a mesh +90° about X so a Z-axis part (gear disc / cylinder) stands
+    # with its axis along Y — the engine's OBJ-normalize axis. Then the loader
+    # centres X/Z and the part rotates about its OWN centre (spin axis = Y).
+    m.v = [(x, -z, y) for (x, y, z) in m.v]
 
 class Mesh:
     def __init__(self): self.v = []; self.f = []
@@ -111,8 +117,16 @@ def main():
     parts["beam5"] = box(20, 4, 4)       # 40 mm
     parts["beam7"] = box(28, 4, 4)       # 56 mm
     parts["pin"]   = cylinder(2.5, 16)   # Ø5 x 16 mm pin
+    # Spinning / axled parts stand axis-along-Y so they rotate about their own
+    # centre (the loader centres X/Z). Beams (structural) stay as authored.
+    for name in ("gear8", "gear12", "gear24", "gear36", "motor", "axle", "wheel", "pin"):
+        rotx90(parts[name])
+    dims = {}
     for name, m in parts.items():
         open(os.path.join(out, name + ".obj"), "w").write(m.obj())
-    print(f"wrote {len(parts)} parts → apps/preview/parts/:", ", ".join(sorted(parts)))
+        ys = [v[1] for v in m.v]
+        dims[name] = {"yext": round(max(ys) - min(ys), 4)}
+    open(os.path.join(out, "dims.json"), "w").write(json.dumps(dims))
+    print(f"wrote {len(parts)} parts + dims.json → apps/preview/parts/:", ", ".join(sorted(parts)))
 
 if __name__ == "__main__": main()

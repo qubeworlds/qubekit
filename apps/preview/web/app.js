@@ -16,16 +16,16 @@ const log = (cls, m) => { const s = document.createElement('span'); s.className 
 const setStatus = (t) => { $('status').textContent = t; };
 $('logtoggle').onclick = () => logEl.classList.toggle('open');
 
-const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
+const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 1, 0]; // gears flat, spin about Y
 const MODULE = 1; // mm — scene units are millimetres (ISO module 1 mm)
 const gearRadius = (teeth) => MODULE * teeth / 2; // pitch radius r = m·z/2
 const TAU = Math.PI * 2;
-// The engine's OBJ loader normalises each mesh to UNIT height (base y=0,
-// X/Z-centred). transform.scale must be the part's real Y-extent (mm) to size it
-// 1:1; we then offset y by -S/2 to re-centre (base→centre). yext: gear Y-extent =
-// outer diameter = (z + 2·addendum) = z + 2; others measured from gen-parts.
-const YEXT_OTHER = { motor: 18, wheel: 30, axle: 4, pin: 5, beam3: 8, beam5: 8, beam7: 8 };
-const yext = (t) => (t.startsWith('gear') ? (catalog.get(t)?.teeth ?? 12) + 2 * MODULE : (YEXT_OTHER[t] ?? 8));
+// Parts are authored axis-along-Y (gears lie flat) so each rotates about its OWN
+// centre (the OBJ loader centres X/Z). The loader also normalises to UNIT height,
+// so transform.scale must be the part's real Y-extent (mm); dims.json carries it
+// per part (emitted by gen-parts). We offset y by -S/2 to re-centre.
+let dims = {};
+const yext = (t) => dims[t]?.yext ?? 8;
 // Is the gear surface a tooth or a gap at this local angle? (mirrors gen-parts'
 // profile: tip land seg∈[0.30,0.70].) Used to phase meshing gears.
 const toothAt = (localAngle, teeth) => {
@@ -76,9 +76,9 @@ function restoreProject() {
 function reset() {
   assembly = { id: 'preview', name: 'preview', rev: 0, parts: [], connections: [], controllers: [] };
   nextId = 1; lastGearId = null; xCursor = 0; simulating = false;
-  // motor sits coaxial behind the gear it drives (same X/Y, offset in Z), its
-  // shaft on the gear's axis. (can motor is 30 mm long → centre ~17 mm back.)
-  const motor = addPart('motor', [0, 0, -17]);
+  // gears lie flat (axis along Y); the motor sits below the first gear, its
+  // shaft pointing up into the gear's centre. (can motor ~30 mm → centre ~16 mm down.)
+  const motor = addPart('motor', [0, -16, 0]);
   const g0 = addPart('gear12', [0, 0, 0]);
   connect(motor, 'out', g0, 'c', 'fixed');
   lastGearId = g0; xCursor = 0;
@@ -110,7 +110,7 @@ function baseEntities() {
   // The train is rendered CENTRED on the origin (see partEntity's −xCursor/2
   // shift), so the camera target stays put and parts never drift off to +X.
   return [
-    { name: 'camera', camera: { fovY: 0.8, near: 0.2, far: 3000, controller: { kind: 'orbit', target: [0, 0, -4], distance: xCursor + 60, yaw: 0.5, pitch: 0.32 } } },
+    { name: 'camera', camera: { fovY: 0.8, near: 0.2, far: 3000, controller: { kind: 'orbit', target: [0, 0, 0], distance: xCursor + 70, yaw: 0.4, pitch: 1.05 } } },
     { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 4.5, direction: [-0.45, -0.8, -0.5] } },
     { name: 'fill', light: { kind: 'directional', color: [0.55, 0.66, 0.9], intensity: 1.6, direction: [0.6, -0.25, 0.55] } },
     { name: 'env', environment: { sky: { zenith: [0.05, 0.06, 0.09], horizon: [0.12, 0.14, 0.18] }, ambient: { color: [0.6, 0.66, 0.8], intensity: 0.6 } } },
@@ -123,7 +123,7 @@ function partEntity(pi, w) {
     name: 'p' + pi.id,
     // real-size via scale = Y-extent (defeats the loader's unit-height squash);
     // centre the train on the origin (−xCursor/2) and re-centre y (−S/2).
-    transform: { position: [pi.transform.p[0] - xCursor / 2, pi.transform.p[1] - S / 2, pi.transform.p[2]], scale: [S, S, S], rotation: [0, 0, pi.phase ?? 0] },
+    transform: { position: [pi.transform.p[0] - xCursor / 2, pi.transform.p[1] - S / 2, pi.transform.p[2]], scale: [S, S, S], rotation: [0, pi.phase ?? 0, 0] },
     geometry: { kind: 'gltf', source: pi.partType + '.obj' },
     material: { color: [...mat.color, 1], metallic: mat.metallic, roughness: mat.roughness, emissive: [0, 0, 0] },
     spin: { velocity: [SPIN_AXIS[0] * w, SPIN_AXIS[1] * w, SPIN_AXIS[2] * w] },
@@ -178,6 +178,9 @@ function provideMeshes() {
 
 (async function init() {
   try { const r = await fetch('./catalog.json' + bust); if (r.ok) { catalog = new Map(Object.entries(await r.json())); log('dim', 'catalog: ' + catalog.size + ' parts'); } } catch (e) { log('err', '[catalog] ' + (e && e.message)); }
+  // dims.json carries each part's real Y-extent (mm) — scale that defeats the
+  // OBJ loader's unit-height normalize so parts render at true millimetre size.
+  try { const r = await fetch('./dims.json' + bust); if (r.ok) { dims = await r.json(); log('dim', 'dims: ' + Object.keys(dims).length + ' parts'); } } catch (e) { log('err', '[dims] ' + (e && e.message)); }
   // Resolve part meshes from the Qubeworlds asset registry (D1 → CDN); fall back
   // to the hardcoded CDN paths if the registry is unreachable.
   setStatus('loading parts…');
