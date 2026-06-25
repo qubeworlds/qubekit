@@ -149,13 +149,22 @@ function provideMeshes() {
 
 (async function init() {
   try { const r = await fetch('./catalog.json' + bust); if (r.ok) { catalog = new Map(Object.entries(await r.json())); log('dim', 'catalog: ' + catalog.size + ' parts'); } } catch (e) { log('err', '[catalog] ' + (e && e.message)); }
-  // prefetch part meshes from the Qubeworlds CDN
+  // Resolve part meshes from the Qubeworlds asset registry (D1 → CDN); fall back
+  // to the hardcoded CDN paths if the registry is unreachable.
   setStatus('loading parts…');
-  await Promise.all(MESHES.map(async (name) => {
-    try { const r = await fetch(CDN_PARTS + '/' + name + '.obj', { mode: 'cors' }); if (r.ok) meshBytes.set(name, new Uint8Array(await r.arrayBuffer())); else log('err', '[mesh ' + name + '] HTTP ' + r.status); }
+  let meshList = MESHES.map((name) => ({ name, url: CDN_PARTS + '/' + name + '.obj' }));
+  try {
+    const r = await fetch('https://api.qubeworlds.com/assets?project=qubekit');
+    if (r.ok) {
+      const objs = ((await r.json()).assets || []).filter((a) => a.kind === 'mesh-obj' && a.id.endsWith('.obj'));
+      if (objs.length) { meshList = objs.map((a) => ({ name: a.id.split('/').pop().replace('.obj', ''), url: a.url })); log('dim', 'registry: ' + objs.length + ' meshes'); }
+    }
+  } catch (e) { log('err', '[registry] ' + (e && e.message) + ' — using CDN fallback'); }
+  await Promise.all(meshList.map(async ({ name, url }) => {
+    try { const r = await fetch(url, { mode: 'cors' }); if (r.ok) meshBytes.set(name, new Uint8Array(await r.arrayBuffer())); else log('err', '[mesh ' + name + '] HTTP ' + r.status); }
     catch (e) { log('err', '[mesh ' + name + '] ' + (e && e.message)); }
   }));
-  log('dim', 'meshes fetched: ' + meshBytes.size + '/' + MESHES.length);
+  log('dim', 'meshes fetched: ' + meshBytes.size + '/' + meshList.length);
 
   if (!restoreProject()) reset(); else log('ok', 'restored ' + assembly.parts.length + ' parts');
   setStatus('loading engine…');
