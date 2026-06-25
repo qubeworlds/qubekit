@@ -21,6 +21,10 @@ ENVIRONMENT="${QUBEPODS_ENV:-production}"
 TOKEN="${QUBEPODS_TOKEN:-$(sed -n 's/.*token *= *"\(qube_[A-Za-z0-9]*\)".*/\1/p' "${HOME}/.qube/pods.toml" 2>/dev/null | head -1)}"
 [ -n "${TOKEN:-}" ] || { echo "no deploy token — run: qube pod login --url $API --token <t>" >&2; exit 1; }
 
+# Rebuild the sim bundle if esbuild is available (Qubonaut ships the committed
+# copy; here we keep it fresh).
+command -v esbuild >/dev/null && "$DIR/build.sh" || echo "(esbuild not found — shipping committed web/qubekit-sim.js)"
+
 ZIP="$(mktemp -u).zip"
 trap 'rm -f "$ZIP"' EXIT
 ( cd "$DIR" && zip -qr "$ZIP" qubepod.jsonc web )
