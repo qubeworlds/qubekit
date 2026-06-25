@@ -30,14 +30,28 @@ class Mesh:
             out.append(f"f {a}//{i} {b}//{i} {c}//{i}")
         return "\n".join(out) + "\n"
 
-def gear(teeth, R, th=0.12, hub=0.34):
-    """Toothed gear in the XY plane, thickness `th` along Z. Trapezoidal teeth."""
-    m = Mesh(); tip = R; root = R - max(0.06, R*0.16)
-    # crisp stepped profile: tip on the tooth quarter, root elsewhere
+# Metric gear standard: pitch diameter d = module · teeth (d = m·z), so pitch
+# radius r = m·z/2. Meshing gears share one module → centre distance r1+r2 =
+# m(z1+z2)/2, and tooth size is identical across the set. Addendum = m, dedendum
+# = 1.25 m (ISO), tooth thickness ≈ half the circular pitch.
+MODULE = 0.03
+
+def gear(teeth, module=MODULE, th=0.10):
+    """Involute-ish spur gear in the XY plane (metric: r = m·z/2), `teeth` teeth."""
+    mesh = Mesh()
+    r = module * teeth / 2.0          # pitch radius
+    tip = r + module                  # addendum
+    root = r - 1.25 * module          # dedendum
+    hub = max(module * 1.2, r * 0.42)
+    # one tooth per 2π/z; ~half the period is land, with short flanks, half is gap
     def rprof(a):
         seg = (a % (TAU/teeth)) / (TAU/teeth)
-        return tip if seg < 0.42 else root
-    samples = teeth * 8
+        if 0.34 <= seg <= 0.66: return tip
+        if 0.24 <= seg < 0.34:  return root + (tip-root) * (seg-0.24)/0.10
+        if 0.66 < seg <= 0.76:  return root + (tip-root) * (0.76-seg)/0.10
+        return root
+    m = mesh
+    samples = max(96, teeth * 16)
     angs = [i/samples*TAU for i in range(samples)]
     top = [m.add_v(rprof(a)*math.cos(a), rprof(a)*math.sin(a),  th/2) for a in angs]
     bot = [m.add_v(rprof(a)*math.cos(a), rprof(a)*math.sin(a), -th/2) for a in angs]
@@ -48,7 +62,7 @@ def gear(teeth, R, th=0.12, hub=0.34):
         m.tri(cbot, bot[b], bot[a])         # back face
         m.quad(bot[a], bot[b], top[b], top[a])  # rim wall
     # raised hub boss (a short cylinder) for the bolted-centre look
-    hb = max(hub, R*0.3); hz = th*0.9; hn = 24
+    hb = hub; hz = th*0.9; hn = 24
     htop = [m.add_v(hb*math.cos(i/hn*TAU), hb*math.sin(i/hn*TAU),  hz) for i in range(hn)]
     hbot = [m.add_v(hb*math.cos(i/hn*TAU), hb*math.sin(i/hn*TAU),  th/2) for i in range(hn)]
     hc = m.add_v(0, 0, hz)
@@ -86,7 +100,7 @@ def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out = os.path.join(root, "apps/preview/parts"); os.makedirs(out, exist_ok=True)
     parts = {}
-    for t in (8, 12, 24, 36): parts[f"gear{t}"] = gear(t, gr(t))
+    for t in (8, 12, 24, 36): parts[f"gear{t}"] = gear(t)
     parts["axle"]  = cylinder(0.05, 0.84)
     parts["wheel"] = cylinder(0.34, 0.18)
     parts["motor"] = box(0.16, 0.16, 0.11)

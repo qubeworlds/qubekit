@@ -17,7 +17,8 @@ const setStatus = (t) => { $('status').textContent = t; };
 $('logtoggle').onclick = () => logEl.classList.toggle('open');
 
 const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
-const gearRadius = (teeth) => 0.12 + teeth * 0.018;
+const MODULE = 0.03;
+const gearRadius = (teeth) => MODULE * teeth / 2; // pitch radius r = m·z/2
 const CDN_PARTS = 'https://cdn.qubeworlds.com/qubekit/parts';
 const MESHES = ['gear8', 'gear12', 'gear24', 'gear36', 'axle', 'wheel', 'motor', 'beam3', 'beam5', 'beam7', 'pin'];
 
