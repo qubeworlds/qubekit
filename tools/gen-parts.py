@@ -39,10 +39,10 @@ MODULE = 0.03
 def gear(teeth, module=MODULE, th=0.10):
     """Involute-ish spur gear in the XY plane (metric: r = m·z/2), `teeth` teeth."""
     mesh = Mesh()
-    r = module * teeth / 2.0          # pitch radius
-    tip = r + 0.85 * module           # addendum (slightly short → squarer, less spiky)
-    root = r - 1.0 * module           # dedendum
-    hub = max(module * 1.2, r * 0.42)
+    r = module * teeth / 2.0          # pitch radius (d = m·z → r = m·z/2)
+    tip = r + 1.0 * module            # addendum = m  (ISO standard)
+    root = r - 1.25 * module          # dedendum = 1.25 m (ISO standard; 0.25 m clearance)
+    hub = max(module * 1.2, r * 0.42) # working depth at a=r1+r2 is 2·addendum = 2 m
     # one tooth per 2π/z: a wide flat tip land with short flanks, ~half is gap
     def rprof(a):
         seg = (a % (TAU/teeth)) / (TAU/teeth)
