@@ -64,7 +64,7 @@ Two product decisions further shape it:
 | Ray picking + translation gizmo | `quine/apps/desktop/main.zig` (`quine_pick`), `gizmo.zig` | **Working.** No snap hints, no multi-select. |
 | Content-agnostic scene/asset pipeline (`scene.json`, `quine_provide_asset`, overlay link) | `quine/modules/core/scene.zig`, `apps/desktop/main.zig`; `world` `mountScene`/overlay mount in `qubegame/src/quine.ts` | **Working.** Scene has `parent`, `body`; no snap-port field. |
 | Q64 compiler: effects/`@realtime` enforcement, `face`/`fit`, ambient `env` capabilities, WIT world synthesis | `q64/q64/src/{effect,sema,typeck,wit}/`; specs in `q64/spec/` | **Real, partial.** `@realtime` no-alloc/no-suspend enforced. WIT lifting scalar-only in v0. |
-| `state`/`@state(scope)` twins (local + per-user/app/room Durable-Object-backed reactive state) | `q64/spec/concurrency-model.md`, `reactivity.md` | **Designed, not implemented.** This is the natural backbone for authoritative world state. |
+| `actor`/`twin`/reactive-`state` + `@kv`/`@wire` effects (per-user/app/room Durable-Object-backed reactive state) | `q64/q64/src/{parser,ir,sema}/`; `spec/concurrency-model.md`, `reactivity.md` | **Scaffolded, not finished** (verified in source). `state`/`actor`/`handle`/`screen`/`let twin = X.spawn()` parse; module-level twins build in HIR (`ir/build_hir.zig`); `@kv`→`wasi:keyvalue`, `@wire` effects route to WIT imports (`ir/effects.zig`). **Follow-ups:** actor→record lowering, the `qview.*` **mutation-op codegen** (the diff emission), and the remote `@state(scope)` semantics (`@state` parses only as a generic annotation; `reactivity.md` calls it "not yet normative"). The natural backbone for authoritative world state once the diff codegen lands. |
 | qube.json5 manifest, Continuum registry (publish/resolve, effect indexing) | `q64/spec/qube.json5.md`, `continuum-api/` | Manifest + registry **infra ready**; no public instance; no parts published. |
 | Stateless qube hosting (Dynamic Workers + KV + WebSocket), gate/pod/runner/router | `qubepods/apps/{gate,pod,runner,router}-*` | **Stateless deployed.** `runtime: stateful` accepted by schema; **no stateful runtime implemented.** |
 | Container/process daemon (node ebot) running the Zig gameserver as precedent | `qubepods/apps/node-controller/`; `qubeworlds/gameserver` (out of scope here) | **Working**, but admin/bespoke — the model to generalize, not to extend. |
@@ -77,9 +77,13 @@ Two product decisions further shape it:
 - **Qubepods:** an actual **stateful per-world runtime** — container/DO process,
   authoritative tick loop, op-validation, delta fan-out, D1/R2 persistence,
   multiplayer session routing, world/space-token auth.
-- **Q64 (as general primitives, not QubeKit syntax):** finish `@state(room)`
-  twins + the mutation-diff protocol, complete WIT lifting for non-scalar types,
-  RPC call codegen.
+- **Q64 (as general primitives, not QubeKit syntax — tracked in
+  [q64-lang/q64#36](https://github.com/q64-lang/q64/issues/36)):** the
+  surface + `@kv`/`@wire` effects exist; what's missing is the **`qview.*`
+  mutation-op codegen** (diff emission) + remote `@state(scope)` semantics,
+  **non-scalar WIT lifting** (str/list/record exports; scalars already lift to a
+  wasmtime-validated component), and the **source-level call binding** for
+  imported worlds (`@wire` import decls are emitted but not yet called).
 - **QubeKit (new framework, mostly in `qubeworlds/qubekit`):** the part/port/
   connection/controller **domain model** as Q64 records + data assets; the
   construction protocol ops; the build/simulate UX; the parts catalog; the
@@ -181,6 +185,12 @@ Express parts/controllers using **general-purpose** Q64 — no language changes.
   controller written in idiomatic Q64; parts catalog loads as data.
 - Critical files: `qubekit/q64/` (new library), `qubekit/parts/*.json` (+ CDN
   glTF), reuse `q64/spec/effects.md`, `q64/spec/env.md`.
+- **Dependency:** the controller-as-twin (shared state) and component-export
+  paths need the Q64 work tracked in
+  [q64-lang/q64#36](https://github.com/q64-lang/q64/issues/36) (mutation-op
+  codegen, non-scalar WIT lifting). Until it lands, controllers run as plain
+  `@realtime` functions and the runtime holds authoritative state (TS-side),
+  with a later migration to Q64 twins.
 
 ### Phase 4 — Construction protocol + persistence wiring (2 wks)
 Connect the three layers into one replicated loop.
