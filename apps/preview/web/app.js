@@ -20,6 +20,12 @@ const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
 const MODULE = 1; // mm — scene units are millimetres (ISO module 1 mm)
 const gearRadius = (teeth) => MODULE * teeth / 2; // pitch radius r = m·z/2
 const TAU = Math.PI * 2;
+// The engine's OBJ loader normalises each mesh to UNIT height (base y=0,
+// X/Z-centred). transform.scale must be the part's real Y-extent (mm) to size it
+// 1:1; we then offset y by -S/2 to re-centre (base→centre). yext: gear Y-extent =
+// outer diameter = (z + 2·addendum) = z + 2; others measured from gen-parts.
+const YEXT_OTHER = { motor: 18, wheel: 30, axle: 4, pin: 5, beam3: 8, beam5: 8, beam7: 8 };
+const yext = (t) => (t.startsWith('gear') ? (catalog.get(t)?.teeth ?? 12) + 2 * MODULE : (YEXT_OTHER[t] ?? 8));
 // Is the gear surface a tooth or a gap at this local angle? (mirrors gen-parts'
 // profile: tip land seg∈[0.30,0.70].) Used to phase meshing gears.
 const toothAt = (localAngle, teeth) => {
@@ -104,7 +110,7 @@ function baseEntities() {
   // The train is rendered CENTRED on the origin (see partEntity's −xCursor/2
   // shift), so the camera target stays put and parts never drift off to +X.
   return [
-    { name: 'camera', camera: { fovY: 0.8, near: 0.2, far: 3000, controller: { kind: 'orbit', target: [0, 0, -4], distance: 40 + xCursor * 0.45, yaw: 0.5, pitch: 0.32 } } },
+    { name: 'camera', camera: { fovY: 0.8, near: 0.2, far: 3000, controller: { kind: 'orbit', target: [0, 0, -4], distance: xCursor + 60, yaw: 0.5, pitch: 0.32 } } },
     { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 4.5, direction: [-0.45, -0.8, -0.5] } },
     { name: 'fill', light: { kind: 'directional', color: [0.55, 0.66, 0.9], intensity: 1.6, direction: [0.6, -0.25, 0.55] } },
     { name: 'env', environment: { sky: { zenith: [0.05, 0.06, 0.09], horizon: [0.12, 0.14, 0.18] }, ambient: { color: [0.6, 0.66, 0.8], intensity: 0.6 } } },
@@ -112,10 +118,12 @@ function baseEntities() {
 }
 function partEntity(pi, w) {
   const mat = metalFor(pi);
+  const S = yext(pi.partType);
   return {
     name: 'p' + pi.id,
-    // centre the whole train on the origin so it never drifts off to +X
-    transform: { position: [pi.transform.p[0] - xCursor / 2, pi.transform.p[1], pi.transform.p[2]], rotation: [0, 0, pi.phase ?? 0] },
+    // real-size via scale = Y-extent (defeats the loader's unit-height squash);
+    // centre the train on the origin (−xCursor/2) and re-centre y (−S/2).
+    transform: { position: [pi.transform.p[0] - xCursor / 2, pi.transform.p[1] - S / 2, pi.transform.p[2]], scale: [S, S, S], rotation: [0, 0, pi.phase ?? 0] },
     geometry: { kind: 'gltf', source: pi.partType + '.obj' },
     material: { color: [...mat.color, 1], metallic: mat.metallic, roughness: mat.roughness, emissive: [0, 0, 0] },
     spin: { velocity: [SPIN_AXIS[0] * w, SPIN_AXIS[1] * w, SPIN_AXIS[2] * w] },
