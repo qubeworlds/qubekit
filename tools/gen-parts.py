@@ -40,15 +40,15 @@ def gear(teeth, module=MODULE, th=0.10):
     """Involute-ish spur gear in the XY plane (metric: r = m·z/2), `teeth` teeth."""
     mesh = Mesh()
     r = module * teeth / 2.0          # pitch radius
-    tip = r + module                  # addendum
-    root = r - 1.25 * module          # dedendum
+    tip = r + 0.85 * module           # addendum (slightly short → squarer, less spiky)
+    root = r - 1.0 * module           # dedendum
     hub = max(module * 1.2, r * 0.42)
-    # one tooth per 2π/z; ~half the period is land, with short flanks, half is gap
+    # one tooth per 2π/z: a wide flat tip land with short flanks, ~half is gap
     def rprof(a):
         seg = (a % (TAU/teeth)) / (TAU/teeth)
-        if 0.34 <= seg <= 0.66: return tip
-        if 0.24 <= seg < 0.34:  return root + (tip-root) * (seg-0.24)/0.10
-        if 0.66 < seg <= 0.76:  return root + (tip-root) * (0.76-seg)/0.10
+        if 0.30 <= seg <= 0.70: return tip
+        if 0.22 <= seg < 0.30:  return root + (tip-root) * (seg-0.22)/0.08
+        if 0.70 < seg <= 0.78:  return root + (tip-root) * (0.78-seg)/0.08
         return root
     m = mesh
     samples = max(96, teeth * 16)

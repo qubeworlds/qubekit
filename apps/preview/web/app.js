@@ -92,7 +92,7 @@ function baseEntities() {
   return [
     { name: 'camera', camera: { fovY: 0.85, near: 0.05, far: 100, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 2.3 + xCursor * 0.5, yaw: 0.6, pitch: 0.38 } } },
     { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 3.6, direction: [-0.5, -0.85, -0.45] } },
-    { name: 'env', environment: { sky_zenith: [0.012, 0.014, 0.020], sky_horizon: [0.03, 0.035, 0.05], ambient_color: [0.50, 0.54, 0.64], ambient_intensity: 0.20 } },
+    { name: 'env', environment: { sky: { zenith: [0.015, 0.017, 0.022], horizon: [0.05, 0.055, 0.07] }, ambient: { color: [0.55, 0.60, 0.72], intensity: 0.28 } } },
     { name: 'frame', transform: { position: [xCursor / 2, -0.24, -0.12] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [w, 0.03, 0.07], color: [0.10, 0.11, 0.14] }] } },
   ];
 }
