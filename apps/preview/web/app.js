@@ -19,6 +19,13 @@ $('logtoggle').onclick = () => logEl.classList.toggle('open');
 const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
 const MODULE = 0.03;
 const gearRadius = (teeth) => MODULE * teeth / 2; // pitch radius r = m·z/2
+const TAU = Math.PI * 2;
+// Is the gear surface a tooth or a gap at this local angle? (mirrors gen-parts'
+// profile: tip land seg∈[0.30,0.70].) Used to phase meshing gears.
+const toothAt = (localAngle, teeth) => {
+  const p = TAU / teeth, seg = (((localAngle % p) + p) % p) / p;
+  return seg >= 0.30 && seg <= 0.70 ? 'tooth' : 'gap';
+};
 const CDN_PARTS = 'https://cdn.qubeworlds.com/qubekit/parts';
 const MESHES = ['gear8', 'gear12', 'gear24', 'gear36', 'axle', 'wheel', 'motor', 'beam3', 'beam5', 'beam7', 'pin'];
 
@@ -72,15 +79,19 @@ function reset() {
 function addPart(type, pos) { const id = nextId++; assembly.parts.push({ id, partType: type, transform: { p: pos, q: [1, 0, 0, 0], s: [1, 1, 1] } }); return id; }
 function connect(a, ap, b, bp, kind) { assembly.connections.push({ id: assembly.connections.length + 1, fromPart: a, fromPort: ap, toPart: b, toPort: bp, constraintType: kind }); }
 function addGear(type) {
-  const rPrev = gearRadius(catalog.get(assembly.parts.find((p) => p.id === lastGearId).partType)?.teeth ?? 12);
-  const rNew = gearRadius(catalog.get(type)?.teeth ?? 24);
-  xCursor += rPrev + rNew; // true meshing centre distance m(z1+z2)/2
-  // Stagger meshing gears into stacked planes (a compound train): their tip
-  // circles engage in XY but they sit on different Z planes, so the teeth don't
-  // interpenetrate — clean without solving in-plane involute phasing.
-  const gn = assembly.parts.filter((p) => p.partType.startsWith('gear')).length;
-  const z = (gn % 2) * 0.12;
-  const g = addPart(type, [xCursor, 0, z]);
+  const prev = assembly.parts.find((p) => p.id === lastGearId);
+  const pz = catalog.get(prev.partType)?.teeth ?? 12;
+  const nz = catalog.get(type)?.teeth ?? 24;
+  xCursor += gearRadius(pz) + gearRadius(nz); // centre distance a = m(z1+z2)/2 (the formula)
+  // Coplanar (z=0). Phase the new gear so its teeth interleave with the
+  // previous one's at the contact: present the complement of what the previous
+  // gear shows toward it (tooth ↔ gap), so they mesh instead of clashing.
+  const np = TAU / nz;
+  const prevFeat = toothAt(0 - (prev.phase ?? 0), pz); // prev's feature toward +X (toward the new gear)
+  let phase = prevFeat === 'gap' ? Math.PI - 0.5 * np : Math.PI; // tooth- vs gap-centre toward prev
+  phase -= Math.round(phase / np) * np; // normalise near 0
+  const g = addPart(type, [xCursor, 0, 0]);
+  assembly.parts.find((p) => p.id === g).phase = phase;
   connect(lastGearId, 'c', g, 'c', 'gear');
   lastGearId = g; saveProject();
   setStatus(`added ${type} — ${assembly.parts.length} parts`);
@@ -100,7 +111,7 @@ function partEntity(pi, w) {
   const mat = metalFor(pi);
   return {
     name: 'p' + pi.id,
-    transform: { position: pi.transform.p },
+    transform: { position: pi.transform.p, rotation: [0, 0, pi.phase ?? 0] },
     geometry: { kind: 'gltf', source: pi.partType + '.obj' },
     material: { color: [...mat.color, 1], metallic: mat.metallic, roughness: mat.roughness, emissive: [0, 0, 0] },
     spin: { velocity: [SPIN_AXIS[0] * w, SPIN_AXIS[1] * w, SPIN_AXIS[2] * w] },
