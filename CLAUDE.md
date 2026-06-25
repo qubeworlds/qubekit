@@ -95,6 +95,32 @@ The release ships native `q64` (linux-amd64 + macOS amd64/arm64) and `qube`
 (linux + macOS, amd64/arm64). Build q64 from source **only** if a task actually
 changes q64 itself — which belongs in `q64-lang/q64`, not here.
 
+## Preview — the live editor shell (fast-iterate loop)
+
+`apps/preview/` is a **static-asset qube** (the editor shell: quine engine from
+the CDN + QubeKit chrome). It's the visibility surface — deploy it and watch
+changes on a real device (the iPad floor).
+
+- **Live URL:** <https://qubekit-preview.qubepod.app/>
+- **One-time auth** — mint a **deploy-scoped** token in the qubepods console
+  (app.qubepods.com, project `qubekit`), then:
+  ```sh
+  qube pod login --url https://api.qubepods.com --token <deploy-token>
+  ```
+  Saved in `~/.qube/pods.toml` (gitignored location). **Never commit the token.**
+- **Deploy** (one command, re-run after any change):
+  ```sh
+  apps/preview/deploy.sh
+  ```
+  It zips `qubepod.jsonc` + `web/` and POSTs to `api.qubepods.com/api/deploy`
+  (reads the token from `pods.toml`, or `$QUBEPODS_TOKEN`). Returns the
+  `*.qubepod.app` URL.
+
+Notes: this deploys to **prod qubepods** (the token is prod-scoped). The native
+`qube` CLI has no static `qube deploy` yet (only `qube pod deploy`, which needs a
+component) — the script does what the Qubonaut shell's `qube deploy` does. From
+inside Qubonaut you can instead just `cd apps/preview && qube deploy`.
+
 ## Deploy — Cloudflare stage and prod are SEPARATE accounts
 
 Worlds and any QubeKit Workers deploy to Cloudflare, and **stage and prod are two
