@@ -1,0 +1,19 @@
+{
+  // The "Multiplayer Rover Builder" — the MVP demo world (PHASED_PLAN.md Phase 7,
+  // Plan.md §13). Deployment descriptor for the qubepods stateful runtime.
+  //
+  // NOTE: this is the qubepod DEPLOYMENT manifest (runtime/storage live here),
+  // NOT q64's qube.json5. `runtime: "stateful"` selects the per-world runtime;
+  // tick rate is runtime config, not a qube.json5 field.
+  "name": "rover-builder",
+  "type": "qubekit.world",
+  "runtime": "stateful",
+  "storage": {
+    "state": "d1",
+    "assets": "r2"
+  },
+  "parts": [
+    "beam3", "beam5", "beam7", "pin", "axle", "wheel",
+    "gear12", "gear24", "motor", "battery", "distance_sensor", "controller", "plate"
+  ]
+}

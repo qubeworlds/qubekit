@@ -1,0 +1,12 @@
+{
+  "name": "@qubekit/sim",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Portable authoritative world logic — imported by the qubepods stateful runtime.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json || true",
+    "test": "echo \"no tests yet\""
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "name": "rover-builder",
+  "comment": "Base scene the room is seeded from. The engine renders `entities`; the host mounts the linked overlay. Starts empty — players build the rover collaboratively.",
+  "overlay": "https://app.qubepods.com/qubekit/overlay.js",
+  "entities": []
+}

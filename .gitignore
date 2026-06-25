@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+.svelte-kit/
+*.tsbuildinfo
+
+# fetched q64/qube release binaries (restored by init.sh)
+bin/
+
+# q64 / qube build artifacts
+*.wasm
+*.component.wasm
+target/
+
+# large catalog assets (published to the CDN, not committed)
+catalog/assets/**/*.glb
+catalog/assets/**/*.ktx2
+
+# local env / wrangler
+.env
+.dev.vars
+.wrangler/
+wrangler.jsonc
+
+# os
+.DS_Store

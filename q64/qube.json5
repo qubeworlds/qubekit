@@ -1,0 +1,20 @@
+{
+  $schema: "https://q64.dev/schema/qube.json5",
+  name: "qubeworlds.qubekit.kit",
+  version: "0.0.0",
+  license: "MIT OR Apache-2.0",
+  description: "QubeKit domain model + controllers, in ordinary Q64 — Part/SnapPort/Connection/Assembly/Controller as records + faces, controllers as @realtime fns. No part/snap language keywords (Q64 stays domain-agnostic).",
+  type: "library",
+  entry: "src/lib.q",
+
+  // Controllers are deterministic real-time logic. The effect checker enforces
+  // @realtime (no alloc / no suspend / no panic).
+  effects: {
+    declared: ["@realtime"],
+  },
+
+  // Component emit + the twin/shared-state path depend on upstream q64 work
+  // tracked in q64-lang/q64#36 (non-scalar WIT lifting, mutation-op codegen).
+  // Until then this builds as a plain library and the runtime holds authority.
+  // component: { emit: true, world: "qubekit-kit" },
+}
