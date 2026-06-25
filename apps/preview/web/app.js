@@ -74,8 +74,13 @@ function connect(a, ap, b, bp, kind) { assembly.connections.push({ id: assembly.
 function addGear(type) {
   const rPrev = gearRadius(catalog.get(assembly.parts.find((p) => p.id === lastGearId).partType)?.teeth ?? 12);
   const rNew = gearRadius(catalog.get(type)?.teeth ?? 24);
-  xCursor += rPrev + rNew;
-  const g = addPart(type, [xCursor, 0, 0]);
+  xCursor += rPrev + rNew; // true meshing centre distance m(z1+z2)/2
+  // Stagger meshing gears into stacked planes (a compound train): their tip
+  // circles engage in XY but they sit on different Z planes, so the teeth don't
+  // interpenetrate — clean without solving in-plane involute phasing.
+  const gn = assembly.parts.filter((p) => p.partType.startsWith('gear')).length;
+  const z = (gn % 2) * 0.12;
+  const g = addPart(type, [xCursor, 0, z]);
   connect(lastGearId, 'c', g, 'c', 'gear');
   lastGearId = g; saveProject();
   setStatus(`added ${type} — ${assembly.parts.length} parts`);
