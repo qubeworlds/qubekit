@@ -1,10 +1,9 @@
-// @qubekit/client — the construction client. Composes:
-//   - Quine's GENERIC nearest-port spatial query (quine_nearest_ports) with
-//     QubeKit's compatibility rules (from @qubekit/schema) to pick a ghost
-//     transform — the compatibility logic lives here, never in the engine;
-//   - optimistic local apply of construction ops, confirmed by the server echo;
-//   - glue onto world's qubegame transport (rev/origin envelope).
+// @qubekit/client — the construction client. Composes Quine's generic
+// nearest-port query with QubeKit's compatibility rules (from @qubekit/schema)
+// to resolve where a new part snaps; the compatibility logic lives HERE, never
+// in the engine. Placement is then applied through @qubekit/sim's World.
 //
-// TODO(Phase 5): snap resolution + optimistic apply.
+// (Until the engine exports quine_nearest_ports, the nearest-port search runs
+// in TS over the assembly geometry — same seam, swappable later.)
 
-export {};
+export * from './snap';
