@@ -1,0 +1,29 @@
+{
+  "id": "gear12",
+  "name": "Gear (12)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/gear_12.glb",
+  "mass": 0.004,
+  "material": "plastic",
+  "teeth": 12,
+  "ports": [
+    {
+      "id": "c",
+      "type": "gear_center",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

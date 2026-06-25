@@ -1,0 +1,149 @@
+{
+  "id": "beam7",
+  "name": "Beam (7)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/beam_7.glb",
+  "mass": 0.02,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "hole0",
+      "type": "pin_socket",
+      "localPos": [
+        -0.024,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole1",
+      "type": "pin_socket",
+      "localPos": [
+        -0.016,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole2",
+      "type": "pin_socket",
+      "localPos": [
+        -0.008,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole3",
+      "type": "pin_socket",
+      "localPos": [
+        0.0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole4",
+      "type": "pin_socket",
+      "localPos": [
+        0.008,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole5",
+      "type": "pin_socket",
+      "localPos": [
+        0.016,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole6",
+      "type": "pin_socket",
+      "localPos": [
+        0.024,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    }
+  ]
+}

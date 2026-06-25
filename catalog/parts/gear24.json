@@ -1,0 +1,29 @@
+{
+  "id": "gear24",
+  "name": "Gear (24)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/gear_24.glb",
+  "mass": 0.007,
+  "material": "plastic",
+  "teeth": 24,
+  "ports": [
+    {
+      "id": "c",
+      "type": "gear_center",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

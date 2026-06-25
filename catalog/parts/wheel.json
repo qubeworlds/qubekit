@@ -1,0 +1,28 @@
+{
+  "id": "wheel",
+  "name": "Wheel",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/wheel.glb",
+  "mass": 0.02,
+  "material": "rubber",
+  "ports": [
+    {
+      "id": "hub",
+      "type": "wheel_hub",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

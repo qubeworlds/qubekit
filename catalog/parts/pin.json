@@ -1,0 +1,28 @@
+{
+  "id": "pin",
+  "name": "Pin",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/pin.glb",
+  "mass": 0.001,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "p",
+      "type": "pin",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin_socket"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}
