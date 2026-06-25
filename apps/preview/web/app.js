@@ -182,7 +182,7 @@ function provideMeshes() {
     }
   } catch (e) { log('err', '[registry] ' + (e && e.message) + ' — using CDN fallback'); }
   await Promise.all(meshList.map(async ({ name, url }) => {
-    try { const r = await fetch(url, { mode: 'cors' }); if (r.ok) meshBytes.set(name, new Uint8Array(await r.arrayBuffer())); else log('err', '[mesh ' + name + '] HTTP ' + r.status); }
+    try { const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now(), { mode: 'cors' }); if (r.ok) meshBytes.set(name, new Uint8Array(await r.arrayBuffer())); else log('err', '[mesh ' + name + '] HTTP ' + r.status); }
     catch (e) { log('err', '[mesh ' + name + '] ' + (e && e.message)); }
   }));
   log('dim', 'meshes fetched: ' + meshBytes.size + '/' + meshList.length);
