@@ -6,6 +6,25 @@ for the Qubeworlds stack: *build a machine together in the browser, program it i
 Q64, simulate it in Quine, publish it on Qubepods.* The product vision is
 `Plan.md`; the build roadmap is `PHASED_PLAN.md`.
 
+## Audience & secrets — QubeKit will go public
+
+This repo is **destined to be public.** Write and commit accordingly — treat
+everything here as **permanently public** (a history rewrite is an emergency
+measure, not an undo button).
+
+- **Never commit identity or infrastructure values** — not in docs, examples, or
+  comments: credentials/API tokens/secrets, account identifiers, **account
+  emails**, personal emails, or provider resource ids (D1/KV/zone/Secrets-Store
+  ids). Use `<account-id>`-style placeholders + "look it up with `wrangler
+  whoami`". Env var *names* (`CLOUDFLARE_API_TOKEN_STAGE`, …) are fine; their
+  *values* are not. CI uses repo secrets; real `wrangler.jsonc` is gitignored
+  (commit a `wrangler.example.jsonc` with placeholders).
+- **Write docs for the real audience.** Contributors change things **by PR**;
+  they never deploy and hold no infrastructure access. Operator-only runbooks
+  (how a world ships, account setup, console steps) belong in the maintainers'
+  private notes, not here. If a doc says "you" and the reader can't do the
+  action, it's addressed wrong.
+
 ## The one rule: QubeKit is framework + data; the platform repos are generic hosts
 
 Every neighbouring repo keeps a hard agnosticism boundary, and QubeKit lives on
