@@ -17,7 +17,7 @@ const setStatus = (t) => { $('status').textContent = t; };
 $('logtoggle').onclick = () => logEl.classList.toggle('open');
 
 const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
-const MODULE = 0.03;
+const MODULE = 1; // mm — scene units are millimetres (ISO module 1 mm)
 const gearRadius = (teeth) => MODULE * teeth / 2; // pitch radius r = m·z/2
 const TAU = Math.PI * 2;
 // Is the gear surface a tooth or a gap at this local angle? (mirrors gen-parts'
@@ -53,7 +53,7 @@ let assembly, nextId, lastGearId, xCursor, simulating = false;
 // ── persistence (#6/#9): a build is a project doc, stored client-side behind a
 // store seam (localStorage now; OPFS Vfs + GitHub commit later). Auto-save on
 // change, restore on boot.
-const STORE_KEY = 'qubekit:project:preview';
+const STORE_KEY = 'qubekit:project:preview:mm'; // bumped: scene rescaled to mm
 const store = {
   read: () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch { return null; } },
   write: (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch (e) { log('err', '[save] ' + (e && e.message)); } },
@@ -70,7 +70,7 @@ function restoreProject() {
 function reset() {
   assembly = { id: 'preview', name: 'preview', rev: 0, parts: [], connections: [], controllers: [] };
   nextId = 1; lastGearId = null; xCursor = 0; simulating = false;
-  const motor = addPart('motor', [-0.5, 0, -0.42]);
+  const motor = addPart('motor', [-10, 0, -9]);
   const g0 = addPart('gear12', [0, 0, 0]);
   connect(motor, 'out', g0, 'c', 'fixed');
   lastGearId = g0; xCursor = 0;
@@ -99,12 +99,12 @@ function addGear(type) {
 }
 
 function baseEntities() {
-  const w = Math.max(0.6, xCursor / 2 + 0.5);
+  const w = Math.max(22, xCursor / 2 + 14); // mm
   return [
-    { name: 'camera', camera: { fovY: 0.85, near: 0.05, far: 100, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 2.3 + xCursor * 0.5, yaw: 0.6, pitch: 0.38 } } },
+    { name: 'camera', camera: { fovY: 0.85, near: 0.5, far: 2000, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 36 + xCursor * 0.7, yaw: 0.6, pitch: 0.38 } } },
     { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 3.6, direction: [-0.5, -0.85, -0.45] } },
     { name: 'env', environment: { sky: { zenith: [0.015, 0.017, 0.022], horizon: [0.05, 0.055, 0.07] }, ambient: { color: [0.55, 0.60, 0.72], intensity: 0.28 } } },
-    { name: 'frame', transform: { position: [xCursor / 2, -0.24, -0.12] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [w, 0.03, 0.07], color: [0.10, 0.11, 0.14] }] } },
+    { name: 'frame', transform: { position: [xCursor / 2, -8, -3] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [w, 1.2, 3], color: [0.10, 0.11, 0.14] }] } },
   ];
 }
 function partEntity(pi, w) {

@@ -34,9 +34,11 @@ class Mesh:
 # radius r = m·z/2. Meshing gears share one module → centre distance r1+r2 =
 # m(z1+z2)/2, and tooth size is identical across the set. Addendum = m, dedendum
 # = 1.25 m (ISO), tooth thickness ≈ half the circular pitch.
-MODULE = 0.03
+# Scene units are MILLIMETRES. Module m = 1 mm (ISO): gear z=12 → d = m·z = 12 mm,
+# outer d_a = d + 2m = 14 mm. Standard construction-kit sizing.
+MODULE = 1.0
 
-def gear(teeth, module=MODULE, th=0.10):
+def gear(teeth, module=MODULE, th=4.0):
     """Involute-ish spur gear in the XY plane (metric: r = m·z/2), `teeth` teeth."""
     mesh = Mesh()
     r = module * teeth / 2.0          # pitch radius (d = m·z → r = m·z/2)
@@ -100,14 +102,15 @@ def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out = os.path.join(root, "apps/preview/parts"); os.makedirs(out, exist_ok=True)
     parts = {}
+    # all sizes in MILLIMETRES (module 1 mm). gear z=12 → 12 mm pitch, 14 mm outer.
     for t in (8, 12, 24, 36): parts[f"gear{t}"] = gear(t)
-    parts["axle"]  = cylinder(0.05, 0.84)
-    parts["wheel"] = cylinder(0.34, 0.18)
-    parts["motor"] = box(0.16, 0.16, 0.11)
-    parts["beam3"] = box(0.10, 0.04, 0.04)
-    parts["beam5"] = box(0.18, 0.04, 0.04)
-    parts["beam7"] = box(0.26, 0.04, 0.04)
-    parts["pin"]   = cylinder(0.06, 0.12)
+    parts["axle"]  = cylinder(1.5, 28)   # 3 mm shaft, 28 mm long
+    parts["wheel"] = cylinder(11, 6)     # 22 mm wheel, 6 mm wide
+    parts["motor"] = box(6, 6, 4)        # 12 x 12 x 8 mm housing
+    parts["beam3"] = box(12, 2, 2)       # 24 mm beam (holes at 8 mm pitch)
+    parts["beam5"] = box(20, 2, 2)       # 40 mm
+    parts["beam7"] = box(28, 2, 2)       # 56 mm
+    parts["pin"]   = cylinder(2.5, 12)   # 5 mm pin
     for name, m in parts.items():
         open(os.path.join(out, name + ".obj"), "w").write(m.obj())
     print(f"wrote {len(parts)} parts → apps/preview/parts/:", ", ".join(sorted(parts)))
