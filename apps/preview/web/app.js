@@ -1,12 +1,12 @@
 // QubeKit preview — the editor shell, driven by the real @qubekit/sim.
 //
-// Boots the shared quine engine (CDN) on a QubeKit scene built from the catalog
-// (web/catalog.json — the sim-relevant ports + teeth, generated from
-// catalog/parts/*.json). On Simulate, every gear spins at the speed
-// @qubekit/sim's symbolic gear graph resolves. The scene runs the game loop at
-// 64 Hz while the display stays at the browser's 60 Hz — the engine interpolates
-// between ticks (interpolate:true), so 64 deterministic sim steps present
-// smoothly across 60 frames.
+// Parts are parametric OBJ meshes served from the Qubeworlds CDN
+// (cdn.qubeworlds.com/qubekit/parts/*.obj). The host prefetches them and hands
+// the bytes to the engine via quine_provide_asset; entities reference them with
+// geometry {kind:"gltf", source:"<name>.obj"} (the engine dispatches .obj →
+// loadObjMesh). Look: machined metal — steel + brass PBR on a dark stage.
+// On Simulate every gear spins at the speed @qubekit/sim's gear graph resolves.
+// Loop runs at 64 Hz; display stays 60; the engine interpolates.
 
 import { resolveAxleSpeeds } from './qubekit-sim.js';
 
@@ -16,29 +16,48 @@ const log = (cls, m) => { const s = document.createElement('span'); s.className 
 const setStatus = (t) => { $('status').textContent = t; };
 $('logtoggle').onclick = () => logEl.classList.toggle('open');
 
-const FIXED_HZ = 64; // game loop rate (display stays at 60 → engine interpolates)
-const SPIN_AXIS = [0, 0, 1];
-const MOTOR_RPM = 2.6;
+const FIXED_HZ = 64, MOTOR_RPM = 2.6, SPIN_AXIS = [0, 0, 1];
 const gearRadius = (teeth) => 0.12 + teeth * 0.018;
+const CDN_PARTS = 'https://cdn.qubeworlds.com/qubekit/parts';
+const MESHES = ['gear8', 'gear12', 'gear24', 'gear36', 'axle', 'wheel', 'motor', 'beam3', 'beam5', 'beam7', 'pin'];
 
-// preview render stand-ins (until gltf parts exist). gears/wheel/axle = discs
-// (mesh, spin reliably); motor/beam = SDF boxes (static housing/frame).
-const RENDER = {
-  motor:  { shape: 'box',  color: [0.92, 0.30, 0.28], half: [0.16, 0.16, 0.11] },
-  wheel:  { shape: 'disc', color: [0.13, 0.13, 0.16], r: 0.34 },
-  axle:   { shape: 'disc', color: [0.72, 0.74, 0.80], r: 0.05, thin: 0.9 },
-  pin:    { shape: 'disc', color: [0.55, 0.57, 0.62], r: 0.06 },
-  gear8:  { shape: 'disc', color: [0.95, 0.80, 0.25], r: gearRadius(8) },
-  gear12: { shape: 'disc', color: [0.30, 0.78, 0.95], r: gearRadius(12) },
-  gear24: { shape: 'disc', color: [0.36, 0.85, 0.46], r: gearRadius(24) },
-  gear36: { shape: 'disc', color: [0.74, 0.55, 0.95], r: gearRadius(36) },
-  beam3:  { shape: 'box',  color: [0.80, 0.66, 0.42], half: [0.10, 0.04, 0.04] },
-  beam7:  { shape: 'box',  color: [0.80, 0.66, 0.42], half: [0.26, 0.04, 0.04] },
+// machined-metal PBR presets (albedo desaturated; high metalness)
+const METAL = {
+  steel:       { color: [0.56, 0.58, 0.62], metallic: 1.0, roughness: 0.40 },
+  brass:       { color: [0.76, 0.58, 0.24], metallic: 1.0, roughness: 0.32 },
+  darksteel:   { color: [0.20, 0.21, 0.24], metallic: 0.85, roughness: 0.55 },
+  brightsteel: { color: [0.74, 0.76, 0.80], metallic: 1.0, roughness: 0.22 },
 };
-const radiusOf = (t) => RENDER[t]?.r ?? 0.3;
+function metalFor(pi) {
+  const t = pi.partType;
+  if (t.startsWith('gear')) return pi.id % 2 ? METAL.brass : METAL.steel; // a steel/brass mix
+  if (t === 'motor' || t.startsWith('beam')) return METAL.darksteel;
+  if (t === 'wheel') return METAL.darksteel;
+  if (t === 'axle' || t === 'pin') return METAL.brightsteel;
+  return METAL.steel;
+}
 
-let catalog = new Map();   // partType → { teeth, ports:[{id,type}] } (from catalog.json)
+let catalog = new Map();
+let meshBytes = new Map();        // name → Uint8Array (prefetched from CDN)
+let provided = false;
 let assembly, nextId, lastGearId, xCursor, simulating = false;
+
+// ── persistence (#6/#9): a build is a project doc, stored client-side behind a
+// store seam (localStorage now; OPFS Vfs + GitHub commit later). Auto-save on
+// change, restore on boot.
+const STORE_KEY = 'qubekit:project:preview';
+const store = {
+  read: () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch { return null; } },
+  write: (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch (e) { log('err', '[save] ' + (e && e.message)); } },
+};
+const saveProject = () => store.write({ schema: 'qubekit-project/v0', name: 'preview', updated: Date.now(), assembly, cursor: { nextId, lastGearId, xCursor } });
+function restoreProject() {
+  const d = store.read();
+  if (!d?.assembly?.parts?.length) return false;
+  assembly = d.assembly; nextId = d.cursor?.nextId ?? Math.max(0, ...assembly.parts.map((p) => p.id)) + 1;
+  lastGearId = d.cursor?.lastGearId ?? null; xCursor = d.cursor?.xCursor ?? 0; simulating = false;
+  return true;
+}
 
 function reset() {
   assembly = { id: 'preview', name: 'preview', rev: 0, parts: [], connections: [], controllers: [] };
@@ -47,48 +66,37 @@ function reset() {
   const g0 = addPart('gear12', [0, 0, 0]);
   connect(motor, 'out', g0, 'c', 'fixed');
   lastGearId = g0; xCursor = 0;
-  setMode(false);
+  saveProject();
 }
-function addPart(type, pos) {
-  const id = nextId++;
-  assembly.parts.push({ id, partType: type, transform: { p: pos, q: [1, 0, 0, 0], s: [1, 1, 1] } });
-  return id;
-}
-function connect(a, ap, b, bp, kind) {
-  assembly.connections.push({ id: assembly.connections.length + 1, fromPart: a, fromPort: ap, toPart: b, toPort: bp, constraintType: kind });
-}
+function addPart(type, pos) { const id = nextId++; assembly.parts.push({ id, partType: type, transform: { p: pos, q: [1, 0, 0, 0], s: [1, 1, 1] } }); return id; }
+function connect(a, ap, b, bp, kind) { assembly.connections.push({ id: assembly.connections.length + 1, fromPart: a, fromPort: ap, toPart: b, toPort: bp, constraintType: kind }); }
 function addGear(type) {
-  const rPrev = radiusOf(assembly.parts.find((p) => p.id === lastGearId).partType);
-  const rNew = radiusOf(type);
+  const rPrev = gearRadius(catalog.get(assembly.parts.find((p) => p.id === lastGearId).partType)?.teeth ?? 12);
+  const rNew = gearRadius(catalog.get(type)?.teeth ?? 24);
   xCursor += rPrev + rNew;
   const g = addPart(type, [xCursor, 0, 0]);
   connect(lastGearId, 'c', g, 'c', 'gear');
-  lastGearId = g;
+  lastGearId = g; saveProject();
   setStatus(`added ${type} — ${assembly.parts.length} parts`);
   rebuild();
 }
 
 function baseEntities() {
+  const w = Math.max(0.6, xCursor / 2 + 0.5);
   return [
-    { name: 'camera', camera: { fovY: 0.9, near: 0.05, far: 100, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 2.4 + xCursor * 0.5, yaw: 0.5, pitch: 0.42 } } },
-    { name: 'sun', light: { kind: 'directional', color: [1, 1, 0.96], intensity: 2.8, direction: [-0.4, -1, -0.35] } },
-    { name: 'env', environment: { sky_zenith: [0.04, 0.06, 0.10], sky_horizon: [0.10, 0.13, 0.20], ambient_color: [0.82, 0.86, 1], ambient_intensity: 0.55 } },
-    // a static frame beam under the train (SDF box)
-    { name: 'frame', transform: { position: [xCursor / 2, -0.22, -0.1] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [Math.max(0.5, xCursor / 2 + 0.4), 0.03, 0.06], color: [0.32, 0.36, 0.44] }] } },
+    { name: 'camera', camera: { fovY: 0.85, near: 0.05, far: 100, controller: { kind: 'orbit', target: [xCursor / 2, 0, 0], distance: 2.3 + xCursor * 0.5, yaw: 0.6, pitch: 0.38 } } },
+    { name: 'sun', light: { kind: 'directional', color: [1, 0.96, 0.88], intensity: 3.6, direction: [-0.5, -0.85, -0.45] } },
+    { name: 'env', environment: { sky_zenith: [0.012, 0.014, 0.020], sky_horizon: [0.03, 0.035, 0.05], ambient_color: [0.50, 0.54, 0.64], ambient_intensity: 0.20 } },
+    { name: 'frame', transform: { position: [xCursor / 2, -0.24, -0.12] }, geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: [w, 0.03, 0.07], color: [0.10, 0.11, 0.14] }] } },
   ];
 }
 function partEntity(pi, w) {
-  const rn = RENDER[pi.partType] || { shape: 'disc', color: [0.7, 0.7, 0.75], r: 0.3 };
-  if (rn.shape === 'box') {
-    return { name: 'p' + pi.id, transform: { position: pi.transform.p },
-      geometry: { kind: 'sdf', nodes: [{ prim: 'box', center: [0, 0, 0], half: rn.half, color: rn.color }] } };
-  }
-  const r = rn.r ?? 0.3;
+  const mat = metalFor(pi);
   return {
     name: 'p' + pi.id,
-    transform: { position: pi.transform.p, scale: [1, 1, rn.thin ? 0.5 : 0.16] },
-    geometry: { kind: 'sphere', radius: r, rings: 12, segments: 28 },
-    material: { color: [...rn.color, 1], metallic: 0.5, roughness: 0.4, emissive: simulating ? rn.color.map((c) => c * 0.07) : [0, 0, 0] },
+    transform: { position: pi.transform.p },
+    geometry: { kind: 'gltf', source: pi.partType + '.obj' },
+    material: { color: [...mat.color, 1], metallic: mat.metallic, roughness: mat.roughness, emissive: [0, 0, 0] },
     spin: { velocity: [SPIN_AXIS[0] * w, SPIN_AXIS[1] * w, SPIN_AXIS[2] * w] },
   };
 }
@@ -110,19 +118,14 @@ function setMode(sim) {
     setStatus('Simulate — ' + (r.conflicts.length ? 'over-constrained!' : 'spinning @ 64 Hz'));
     log('ok', 'speeds (rad/s): ' + [...r.speeds.entries()].map(([id, s]) => 'p' + id + '=' + s.toFixed(2)).join(' '));
   } else setStatus('Build mode');
-  rebuild();
+  saveProject(); rebuild();
 }
 $('mBuild').onclick = () => setMode(false);
 $('mSim').onclick = () => setMode(true);
 
 const PALETTE = { gear: 'gear24', wheel: 'gear36', axle: 'gear8', pinion: 'gear12' };
 document.querySelectorAll('#palette button').forEach((b) => {
-  b.onclick = () => {
-    const p = b.dataset.part;
-    if (p === 'motor') { reset(); setStatus('reset to motor + gear'); }
-    else if (PALETTE[p]) addGear(PALETTE[p]);
-    else addGear('gear24');
-  };
+  b.onclick = () => { const p = b.dataset.part; if (p === 'motor') { reset(); setMode(false); setStatus('reset'); } else addGear(PALETTE[p] || 'gear24'); };
 });
 
 // ── engine boot ──────────────────────────────────────────────────────────────
@@ -132,15 +135,28 @@ const bust = '?v=' + Date.now();
 window.addEventListener('error', (e) => log('err', '[window] ' + (e.message || '') + ' ' + (e.filename || '') + ':' + (e.lineno || '')));
 window.addEventListener('unhandledrejection', (e) => { const r = e.reason; log('err', '[reject] ' + ((r && r.stack) ? r.stack : String(r))); });
 
-(async function init() {
-  try {
-    const r = await fetch('./catalog.json' + bust);
-    if (r.ok) { const obj = await r.json(); catalog = new Map(Object.entries(obj)); log('dim', 'catalog: ' + catalog.size + ' parts'); }
-    else log('err', '[catalog] HTTP ' + r.status);
-  } catch (e) { log('err', '[catalog] ' + (e && e.message)); }
+function provideMeshes() {
+  if (provided) return;
+  const M = window.Module;
+  for (const [name, data] of meshBytes) {
+    try { const p = M._malloc(data.length); M.HEAPU8.set(data, p); M.ccall('quine_provide_asset', null, ['string', 'number', 'number'], [name + '.obj', p, data.length]); M._free(p); }
+    catch (e) { log('err', '[mesh ' + name + '] ' + (e && e.message)); }
+  }
+  provided = true;
+  log('ok', 'provided ' + meshBytes.size + ' part meshes (CDN)');
+}
 
-  reset();
-  log('dim', 'ua: ' + navigator.userAgent);
+(async function init() {
+  try { const r = await fetch('./catalog.json' + bust); if (r.ok) { catalog = new Map(Object.entries(await r.json())); log('dim', 'catalog: ' + catalog.size + ' parts'); } } catch (e) { log('err', '[catalog] ' + (e && e.message)); }
+  // prefetch part meshes from the Qubeworlds CDN
+  setStatus('loading parts…');
+  await Promise.all(MESHES.map(async (name) => {
+    try { const r = await fetch(CDN_PARTS + '/' + name + '.obj', { mode: 'cors' }); if (r.ok) meshBytes.set(name, new Uint8Array(await r.arrayBuffer())); else log('err', '[mesh ' + name + '] HTTP ' + r.status); }
+    catch (e) { log('err', '[mesh ' + name + '] ' + (e && e.message)); }
+  }));
+  log('dim', 'meshes fetched: ' + meshBytes.size + '/' + MESHES.length);
+
+  if (!restoreProject()) reset(); else log('ok', 'restored ' + assembly.parts.length + ' parts');
   setStatus('loading engine…');
   window.Module = {
     canvas: $('canvas'),
@@ -149,6 +165,7 @@ window.addEventListener('unhandledrejection', (e) => { const r = e.reason; log('
     printErr: (t) => log('err', 'engine[err]: ' + t),
     onAbort: (w) => { log('err', '[ABORT] ' + w); setStatus('engine aborted'); },
     onRuntimeInitialized: () => {
+      provideMeshes();
       window.Module.ccall('quine_enqueue', null, ['string'], [JSON.stringify({ type: 'scene', json: buildScene() })]);
       window.Module.ccall('quine_set_autoplay', null, ['number'], [1]);
       window.Module.ccall('quine_set_hud', null, ['number'], [0]);
