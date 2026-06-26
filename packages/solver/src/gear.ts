@@ -177,6 +177,21 @@ export function canMesh(
   return { ok: reasons.length === 0, reasons, centerDistance: standard, gearRatio: ratio, contactRatio: eps };
 }
 
+export interface BevelPair {
+  ratio: number; // |ω₂/ω₁| = z₁/z₂
+  coneAngle1: number; // pitch-cone half-angle of gear 1 (rad)
+  coneAngle2: number; // pitch-cone half-angle of gear 2 (rad)
+  shaftAngle: number; // angle between the two shafts (rad)
+}
+
+// A bevel-gear pair on intersecting shafts (default a right angle) — the
+// right-angle drive in a governor or differential. The pitch cones satisfy
+// tan γ₁ = sinΣ / (z₂/z₁ + cosΣ), γ₂ = Σ − γ₁.
+export function bevelPair(z1: number, z2: number, shaftAngle: number = Math.PI / 2): BevelPair {
+  const g1 = Math.atan2(Math.sin(shaftAngle), z2 / z1 + Math.cos(shaftAngle));
+  return { ratio: z1 / z2, coneAngle1: g1, coneAngle2: shaftAngle - g1, shaftAngle };
+}
+
 export interface MeshEdge {
   a: number; // index into gears[]
   b: number; // index into gears[]

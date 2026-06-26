@@ -3,54 +3,62 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>QubeKit — gear train (2D / 3D)</title>
+    <title>QubeKit — mechanisms</title>
     <style>
       :root { color-scheme: dark; }
+      [hidden] { display: none !important; }
       html, body { margin: 0; min-height: 100%; background: #0f1115; color: #e5e7eb;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       body { display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 14px; padding: 24px; box-sizing: border-box; min-height: 100vh; }
       h1 { font-size: clamp(18px, 4vw, 26px); font-weight: 600; margin: 0; letter-spacing: 0.02em; }
-      p.sub { margin: 0; max-width: 640px; text-align: center; color: #9ca3af;
+      p.sub { margin: 0; max-width: 660px; text-align: center; color: #9ca3af;
         font-size: clamp(12px, 2.6vw, 14px); line-height: 1.5; }
       p.sub code { color: #cbd5e1; }
+      select#mech { background: #0d1117; color: #e5e7eb; border: 1px solid #2a3344; border-radius: 9px;
+        padding: 8px 12px; font: inherit; cursor: pointer; }
       .tabs { display: inline-flex; border: 1px solid #2a3344; border-radius: 10px; overflow: hidden; }
-      .tabs button { background: #0d1117; color: #cbd5e1; border: 0; padding: 8px 24px;
-        font: inherit; cursor: pointer; min-width: 70px; }
+      .tabs button { background: #0d1117; color: #cbd5e1; border: 0; padding: 8px 22px;
+        font: inherit; cursor: pointer; min-width: 62px; }
       .tabs button[aria-pressed='true'] { background: #1d2a3a; color: #fff; }
-      .controls { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }
-      label.lock { display: inline-flex; align-items: center; gap: 7px; color: #cbd5e1;
+      .controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+      label.lock, label.speed { display: inline-flex; align-items: center; gap: 8px; color: #cbd5e1;
         font-size: clamp(11px, 2.4vw, 13px); cursor: pointer; user-select: none; }
       label.lock input { width: 15px; height: 15px; accent-color: #f87171; }
+      label.speed input { accent-color: #3b82f6; width: 130px; }
+      #speedval { color: #93c5fd; min-width: 64px; }
       .view { width: min(92vw, 900px); }
       canvas#c2d { width: 100%; height: auto; display: block; }
       #view3d { height: min(58vw, 540px); border-radius: 8px; overflow: hidden; }
       #view3d canvas { display: block; }
-      #facts { font-size: clamp(11px, 2.4vw, 13px); color: #cbd5e1; text-align: center; }
+      #facts { font-size: clamp(11px, 2.4vw, 13px); color: #cbd5e1; text-align: center; max-width: 720px; }
       #facts b { color: #34d399; }
       .hint { color: #6b7280; font-size: 11px; }
     </style>
   </head>
   <body>
-    <h1>A four-gear train + steam engine — 2D &amp; 3D</h1>
+    <h1>QubeKit — solver-driven mechanisms</h1>
     <p class="sub">
-      One mechanism, two views, all from <code>@qubekit/solver</code>:
-      <code>gear()</code> involute profiles, <code>solveTrain()</code> kinematics,
-      and a <code>sliderCrank()</code> steam engine on wheel 1 turning rotary motion
-      into a reciprocating piston. Tick <em>Lock</em> to wedge a gear between two that
-      already mesh — an odd loop the solver flags as jammed.
+      Every mechanism here is generated and solved by <code>@qubekit/solver</code>:
+      involute gears, a slider-crank steam engine, and a centrifugal flyball
+      governor. Pick one from the menu.
     </p>
     <div class="controls">
+      <select id="mech" aria-label="mechanism">
+        <option value="train">Gear train + steam engine</option>
+        <option value="governor">Flyball governor</option>
+      </select>
       <div class="tabs" role="group" aria-label="view">
-        <button data-tab="2d" aria-pressed="true">2D</button>
-        <button data-tab="3d" aria-pressed="false">3D</button>
+        <button id="tab-2d" aria-pressed="true">2D</button>
+        <button id="tab-3d" aria-pressed="false">3D</button>
       </div>
-      <label class="lock"><input type="checkbox" id="lock" /> Lock (bridge gears 3 &amp; 4)</label>
+      <label class="lock" id="ctl-lock"><input type="checkbox" id="lock" /> Lock (bridge gears 3 &amp; 4)</label>
+      <label class="speed" id="ctl-speed" hidden>Speed <input type="range" id="speed" min="0" max="40" step="1" /> <span id="speedval"></span></label>
     </div>
     <div id="view2d" class="view"><canvas id="c2d" width="900" height="460"></canvas></div>
     <div id="view3d" class="view" hidden></div>
     <div id="facts">…</div>
-    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom</div>
+    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom · governor: drag the speed slider</div>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

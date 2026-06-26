@@ -121,6 +121,13 @@ export function canMesh(a, b, opts = {}) {
         reasons.push(`gear B undercut (z=${b.z} < ${b.minTeethNoUndercut} min): interference at the root`);
     return { ok: reasons.length === 0, reasons, centerDistance: standard, gearRatio: ratio, contactRatio: eps };
 }
+// A bevel-gear pair on intersecting shafts (default a right angle) — the
+// right-angle drive in a governor or differential. The pitch cones satisfy
+// tan γ₁ = sinΣ / (z₂/z₁ + cosΣ), γ₂ = Σ − γ₁.
+export function bevelPair(z1, z2, shaftAngle = Math.PI / 2) {
+    const g1 = Math.atan2(Math.sin(shaftAngle), z2 / z1 + Math.cos(shaftAngle));
+    return { ratio: z1 / z2, coneAngle1: g1, coneAngle2: shaftAngle - g1, shaftAngle };
+}
 // Propagate rotation through a mesh graph from a single driver. Each external
 // mesh reverses sign and scales by −z_a/z_b. A closed loop with an odd number of
 // meshes (or incommensurate ratios) drives a gear to two different speeds at

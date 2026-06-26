@@ -10,6 +10,7 @@ export function init2D(model, cv) {
   let L = layout();
   function layout() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.width = '100%'; cv.style.height = 'auto'; // reset any inline sizing from the governor view
     const cssW = cv.clientWidth || 900;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     const inc = (x, y) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); };
