@@ -90,12 +90,25 @@ export function init3D(model, container) {
   wrist.add(jointHousing(17, 32));
   wrist.add(linkBox(params.tool, 20, 24, 4));
 
-  // gripper at the tool end (local +X is the tool axis; it points down when q3=−90°)
+  // gripper at the tool end (local +X is the tool axis; points down when q3=−90°).
+  // A parallel gripper: a fixed body + a guide RAIL spanning the full finger
+  // travel, and two carriages that slide along it — so the fingers are mounted,
+  // not flying, however wide they open.
   const gripper = new THREE.Group(); gripper.position.set(params.tool, 0, 0); wrist.add(gripper);
-  gripper.add(new THREE.Mesh(new THREE.BoxGeometry(18, 26, 40), pla(0xcfd5e0))); // palm across Z
-  const finger = () => { const f = new THREE.Mesh(new THREE.BoxGeometry(34, 8, 9), pla(0xb9c0cd)); return f; };
-  const fA = finger(), fB = finger(); // extend along +X (tool dir), open across Z
-  fA.position.set(20, 0, 0); fB.position.set(20, 0, 0); gripper.add(fA, fB);
+  const addAt = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const maxOpen = Math.max(...items.map((it) => model.footHalf(it.foot))) + 5 + 18; // widest spread (block)
+  const railLen = 2 * maxOpen + 24;
+  addAt(gripper, new THREE.BoxGeometry(22, 24, 34), pla(0xcfd5e0), 8, 0, 0); // body / wrist flange
+  addAt(gripper, new THREE.BoxGeometry(9, 7, railLen), housing(), 20, 8, 0);  // guide rail (top)
+  addAt(gripper, new THREE.BoxGeometry(9, 7, railLen), housing(), 20, -8, 0); // guide rail (bottom)
+  function makeFinger(inward) {
+    const g = new THREE.Group();
+    addAt(g, new THREE.BoxGeometry(15, 24, 20), pla(0xb9c0cd), 20, 0, 0); // carriage riding the rails
+    addAt(g, new THREE.BoxGeometry(28, 9, 9), pla(0xb9c0cd), 34, 0, 0);   // finger bar (down +X)
+    addAt(g, new THREE.BoxGeometry(8, 17, 5), accent(), 46, 0, inward * 2.5); // inner grip pad
+    return g;
+  }
+  const fA = makeFinger(1), fB = makeFinger(-1); gripper.add(fA, fB);
 
   // ---- items (extruded footprints), base at y=0 ----
   const itemMeshes = items.map((it) => { const m = new THREE.Mesh(prismGeo(it.foot, it.height), matt(it.color)); scene.add(m); return m; });

@@ -10,6 +10,7 @@ export function init2D(model, cv) {
   const ctx = cv.getContext('2d');
   const { params, items, sorter, clearance } = model;
   const reach = params.shoulderOffset + params.upperArm + params.forearm + params.tool;
+  const maxOpen = Math.max(...items.map((it) => model.footHalf(it.foot))) + 4 + 18; // rail half-span
 
   let L = layout();
   function layout() {
@@ -127,13 +128,14 @@ export function init2D(model, cv) {
     dot(r[2], h[2], 7, '#303644', '#2dd4bf'); // elbow
     dot(r[3], h[3], 5.5, '#303644', '#2dd4bf'); // wrist
 
-    // gripper (two fingers across); closes onto the held item's width (stopgap
-    // until jolt does real contact) so it doesn't clip inside the object
+    // gripper: a fixed guide rail with two fingers (carriages) sliding on it.
+    // Fingers close onto the held item's width (stopgap until jolt does real
+    // contact) so they sit on the surface instead of clipping inside.
     const carriedHalf = carry >= 0 ? model.footHalf(items[carry].foot) : 12;
     const open = carriedHalf + 4 + (1 - grip) * 18, tipR = r[4], tipY = h[4], fl = 26;
-    capsule(tipR - open, tipY + fl, tipR - open, tipY, 4, '#e2e8f4');
-    capsule(tipR + open, tipY + fl, tipR + open, tipY, 4, '#e2e8f4');
-    capsule(tipR - open, tipY + fl, tipR + open, tipY + fl, 4, '#e2e8f4');
+    capsule(tipR - maxOpen, tipY + fl, tipR + maxOpen, tipY + fl, 5, '#9aa1b0'); // fixed rail (full travel)
+    capsule(tipR - open, tipY + fl, tipR - open, tipY, 4.5, '#e2e8f4'); // finger / carriage
+    capsule(tipR + open, tipY + fl, tipR + open, tipY, 4.5, '#e2e8f4');
 
     // carried item rides in the gripper
     if (carry >= 0) itemIcon(tipR, Math.max(0, tipY - items[carry].height), items[carry], items[carry].color);
