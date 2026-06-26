@@ -27,9 +27,24 @@ TOKEN="${QUBEPODS_TOKEN:-$(sed -n 's/.*token *= *"\(qube_[A-Za-z0-9]*\)".*/\1/p'
 # ship the committed copy (the Qubonaut shell only has web/).
 command -v pnpm >/dev/null && "$DIR/build.sh" || echo "(pnpm not found — shipping committed web/solver)"
 
+# Cache-bust the ES-module graph. The qubepods gate serves index.html with
+# max-age=0 (always revalidated) but JS with max-age=300, so a plain redeploy is
+# invisible for up to 5 min. We stamp a per-deploy ?v=<hash> onto every relative
+# module specifier (and the entry <script>): index.html is always fresh, so a new
+# hash invalidates the whole graph instantly. Done in a staging copy — source is
+# left untouched.
+VER="$(find "$DIR/web" -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' \) -print0 | sort -z | xargs -0 cat | sha1sum | cut -c1-10)"
+STAGE="$(mktemp -d)"
 ZIP="$(mktemp -u).zip"
-trap 'rm -f "$ZIP"' EXIT
-( cd "$DIR" && zip -qr "$ZIP" qubepod.jsonc web )
+trap 'rm -rf "$STAGE" "$ZIP"' EXIT
+cp "$DIR/qubepod.jsonc" "$STAGE/"
+cp -r "$DIR/web" "$STAGE/web"
+find "$STAGE/web" -name '*.js' -print0 | xargs -0 sed -i -E \
+  -e "s/(from '\.\/[^']*\.js)'/\1?v=$VER'/g" \
+  -e "s/(import\('\.\/[^']*\.js)'\)/\1?v=$VER')/g"
+sed -i -E "s#(src=\"\./app\.js)\"#\1?v=$VER\"#" "$STAGE/web/index.html"
+echo "cache-bust version: $VER"
+( cd "$STAGE" && zip -qr "$ZIP" qubepod.jsonc web )
 
 echo "deploying $DIR → $API ($ENVIRONMENT)…"
 curl -fsS -X POST "$API/api/deploy" \
