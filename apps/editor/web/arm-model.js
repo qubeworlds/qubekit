@@ -111,13 +111,30 @@ export function buildArm() {
   const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
   const ease = (t) => t * t * (3 - 2 * t);
 
+  // Allocate trajectory TIME by distance travelled, not one slice per waypoint:
+  // otherwise the long cross-table traverse (block, far left → sorter) gets the
+  // same time as a tiny move and whips across just before the descent. Each
+  // segment's weight is its length, floored at MINW so gripper-only / hold
+  // segments (zero distance) still get a beat. Tip speed is then ~constant.
+  const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const MINW = 90; // mm-equivalent floor for grip / release / pause segments
+  const segW = [];
+  for (let i = 0; i < wps.length - 1; i++) segW.push(Math.max(MINW, dist3(wps[i].pos, wps[i + 1].pos)));
+  const totalW = segW.reduce((s, w) => s + w, 0);
+  const cum = [0];
+  for (const w of segW) cum.push(cum[cum.length - 1] + w / totalW); // cum[segs] = 1
+  function segAt(phase) {
+    const t = (((phase % 1) + 1) % 1);
+    let i = 0; while (i < segW.length - 1 && t >= cum[i + 1]) i++;
+    const f = (t - cum[i]) / (segW[i] / totalW);
+    return { i, f: Math.max(0, Math.min(1, f)) };
+  }
+
   let speed = 1;
 
   function poseAt(phase) {
-    const segs = wps.length - 1;
-    const u = (((phase % 1) + 1) % 1) * segs;
-    const i = Math.min(segs - 1, Math.floor(u));
-    const f = ease(u - i);
+    const { i, f: raw } = segAt(phase);
+    const f = ease(raw);
     const a = wps[i], b = wps[i + 1];
     const target = lerp3(a.pos, b.pos, f);
     const grip = lerp(a.grip, b.grip, f);
@@ -141,7 +158,7 @@ export function buildArm() {
   // gripper opens).
   const placeSeg = items.map((it) => wps.findIndex((w) => w.label === `place ${it.name}`));
   function placedMask(phase) {
-    const segs = wps.length - 1, idx = Math.floor((((phase % 1) + 1) % 1) * segs);
+    const { i: idx } = segAt(phase);
     return placeSeg.map((seg) => seg >= 0 && idx >= seg);
   }
 
