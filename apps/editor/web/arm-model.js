@@ -132,11 +132,17 @@ export function buildArm() {
   // the table. offTable() is that fence; the scripted path never trips it, but the
   // contract is in place for the physics swap.)
   const offTable = (p) => p[1] < 0 || p[0] < tableBounds.xMin || p[0] > tableBounds.xMax || p[2] < tableBounds.zMin || p[2] > tableBounds.zMax;
-  const releaseSeg = items.map((it) => wps.findIndex((w) => w.label === `release ${it.name}`));
-  // which items have been dropped into the box by this point in the episode
+  // An item counts as "in the box" from the segment it reaches its hole (the
+  // `place` waypoint), NOT from `release`: in the place→release segment the
+  // carried index flips to −1 at the halfway point, so keying off `release`
+  // leaves a half-segment where the item is neither carried nor placed and it
+  // flashes back to its table rest spot. The gripper sits exactly at the perch
+  // then, so flipping at `place` is seamless (carry branch still wins until the
+  // gripper opens).
+  const placeSeg = items.map((it) => wps.findIndex((w) => w.label === `place ${it.name}`));
   function placedMask(phase) {
     const segs = wps.length - 1, idx = Math.floor((((phase % 1) + 1) % 1) * segs);
-    return releaseSeg.map((seg) => seg >= 0 && idx >= seg);
+    return placeSeg.map((seg) => seg >= 0 && idx >= seg);
   }
 
   return {
