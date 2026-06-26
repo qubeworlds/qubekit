@@ -5,6 +5,7 @@
 // horizontal). Three.js (vendored). Drag to orbit; two-finger / wheel zoom.
 
 import * as THREE from './vendor/three.module.js';
+import { spring as makeSpring, bevelGear } from './parts3d.js';
 
 export function init3D(model, container) {
   const { params, geo } = model;
@@ -48,20 +49,22 @@ export function init3D(model, container) {
   spinner.add(sleeve);
   const links = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 20, 2.4), brass()); spinner.add(m); return m; });
 
-  // spring: a helix built on a unit height, then scaled in Y to compress
-  const springPts = [];
-  for (let k = 0; k <= 8 * 16; k++) { const t = k / (8 * 16), a = t * 8 * 2 * Math.PI; springPts.push(new THREE.Vector3(Math.cos(a) * 7, t, Math.sin(a) * 7)); }
-  const spring = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(springPts), 200, 1.1, 8, false), steel(0x8aa0c0));
+  // spring: reusable helical part (toolbox), normalized to y∈[0,1], scaled to compress
+  const spring = makeSpring({ radius: 7, wire: 1.1, coils: 8 });
   spinner.add(spring);
 
-  // vertical bevel gear (cone, apex down at the corner) — spins with the spinner
-  const vCone = new THREE.Mesh(new THREE.ConeGeometry(8, 8, 24), steel());
-  vCone.rotation.x = Math.PI; vCone.position.y = baseY + 4; spinner.add(vCone);
+  // bevel-gear right-angle drive with REAL teeth (toolbox bevelGear): a vertical
+  // gear on the spindle meshing a horizontal gear on the belt shaft; toes meet
+  // at the corner (0, baseY, 0).
+  const BZ = 14, BR = 8, BM = (2 * BR) / BZ, BFW = BR * 0.7;
+  const axialV = BFW * Math.cos(model.bevel.coneAngle1);
+  const vGear = bevelGear({ teeth: BZ, module: BM, faceWidth: BFW, coneAngle: model.bevel.coneAngle1, color: 0xb8bcc4 });
+  vGear.rotation.x = Math.PI / 2; vGear.position.y = baseY + axialV; spinner.add(vGear); // large end up, toe at corner
 
-  // --- horizontal shaft (spins about X): bevel cone + shaft + belt pulley ---
+  // --- horizontal shaft (spins about X): bevel gear + shaft + belt pulley ---
   const hShaft = new THREE.Group(); hShaft.position.set(0, baseY, 0); scene.add(hShaft);
-  const hCone = new THREE.Mesh(new THREE.ConeGeometry(8, 8, 24), brass());
-  hCone.rotation.z = Math.PI / 2; hCone.position.set(4, 0, 0); hShaft.add(hCone); // apex toward the corner
+  const hGear = bevelGear({ teeth: BZ, module: BM, faceWidth: BFW, coneAngle: model.bevel.coneAngle2, color: 0xb88a4e });
+  hGear.rotation.y = -Math.PI / 2; hGear.position.set(axialV, 0, 0); hShaft.add(hGear); // toe toward the corner
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 16), steel(0x8f97a3));
   shaft.rotation.z = Math.PI / 2; shaft.position.set(20, 0, 0); hShaft.add(shaft);
   const pulley = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 6, 28), steel(0x6b7a93));
