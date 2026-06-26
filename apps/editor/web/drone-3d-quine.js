@@ -26,6 +26,7 @@ function bootEngine(onStatus) {
     sceneUrl: './quine/drone.scene.json' + bust,
     skillUrl: './quine/drone.skill.js' + bust,
     version: ENGINE_VERSION,
+    gpu: 'webgl2', // pinned: the engine's WebGPU path renders blank on some browsers (qubegame pins it too) — verify before enabling auto
     onStatus,
   }).then((v) => { engine.view = v; }).catch((e) => { engine.failed = e; throw e; });
   return engine;

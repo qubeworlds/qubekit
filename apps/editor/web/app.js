@@ -15,9 +15,10 @@ import { init2D as arm2D } from './arm-2d.js';
 import { init3D as arm3D } from './arm-3d.js';
 import { buildDrone } from './drone-model.js';
 import { init2D as drone2D } from './drone-2d.js';
-// 3D drone: Three.js view (stable). The Quine/Jolt-physics view lives in
-// ./drone-3d-quine.js — under investigation, not wired in yet.
 import { init3D as drone3D } from './drone-3d.js';
+// Experimental: the drone on the Quine engine (Jolt physics). Lives in its own
+// dropdown entry so we can test backends/meshes without touching the stable drone.
+import { init3D as drone3DQuine } from './drone-3d-quine.js';
 
 const MECH = {
   train: {
@@ -35,6 +36,10 @@ const MECH = {
   drone: {
     label: 'Drone', has3D: true, control: 'rpm4',
     build: () => buildDrone(), v2: drone2D, v3: drone3D,
+  },
+  dronex: {
+    label: 'Drone · Quine physics (test)', has3D: true, control: 'rpm4',
+    build: () => buildDrone(), v2: drone2D, v3: drone3DQuine,
   },
 };
 

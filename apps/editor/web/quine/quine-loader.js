@@ -29,16 +29,17 @@ function pickBackend() {
   return navigator.gpu.requestAdapter().then((a) => (a ? 'webgpu' : 'webgl2')).catch(() => 'webgl2');
 }
 
-// opts: { canvas, sceneUrl, skillUrl, version?, engineBase?, onStatus?(line) }
+// opts: { canvas, sceneUrl, skillUrl, version?, engineBase?, gpu?, onStatus?(line) }
+//   gpu: 'webgl2' | 'webgpu' | 'auto' (default 'auto' → webgpu where available)
 export async function mountQuineScene(opts) {
-  const { canvas, sceneUrl, skillUrl, version = 'latest', engineBase = `${CDN}/engine`, onStatus = () => {} } = opts;
+  const { canvas, sceneUrl, skillUrl, version = 'latest', engineBase = `${CDN}/engine`, gpu = 'auto', onStatus = () => {} } = opts;
   const base = engineBase;
   const bust = version ? `?v=${encodeURIComponent(version)}` : '';
   const t0 = performance.now();
   const say = (l) => onStatus(`+${Math.round(performance.now() - t0)}ms ${l}`);
 
-  const backend = await pickBackend();
-  say(`backend ${backend}`);
+  const backend = gpu === 'webgl2' || gpu === 'webgpu' ? gpu : await pickBackend();
+  say(`backend ${backend}${gpu !== 'auto' ? ' (pinned)' : ''}`);
 
   // fetch wasm bytes, the scene JSON, and the skill source up front
   const [wasmBytes, sceneJson, skillCode] = await Promise.all([
