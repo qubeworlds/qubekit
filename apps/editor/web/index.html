@@ -3,34 +3,46 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>QubeKit — a four-gear train</title>
+    <title>QubeKit — gear train (2D / 3D)</title>
     <style>
       :root { color-scheme: dark; }
       html, body { margin: 0; min-height: 100%; background: #0f1115; color: #e5e7eb;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       body { display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 16px; padding: 24px; box-sizing: border-box; min-height: 100vh; }
+        gap: 14px; padding: 24px; box-sizing: border-box; min-height: 100vh; }
       h1 { font-size: clamp(18px, 4vw, 26px); font-weight: 600; margin: 0; letter-spacing: 0.02em; }
       p.sub { margin: 0; max-width: 640px; text-align: center; color: #9ca3af;
         font-size: clamp(12px, 2.6vw, 14px); line-height: 1.5; }
       p.sub code { color: #cbd5e1; }
-      canvas { width: min(92vw, 900px); height: auto; touch-action: none; }
+      .tabs { display: inline-flex; border: 1px solid #2a3344; border-radius: 10px; overflow: hidden; }
+      .tabs button { background: #0d1117; color: #cbd5e1; border: 0; padding: 8px 24px;
+        font: inherit; cursor: pointer; min-width: 70px; }
+      .tabs button[aria-pressed='true'] { background: #1d2a3a; color: #fff; }
+      .view { width: min(92vw, 900px); }
+      canvas#c2d { width: 100%; height: auto; display: block; }
+      #view3d { height: min(58vw, 540px); border-radius: 8px; overflow: hidden; }
+      #view3d canvas { display: block; }
       #facts { font-size: clamp(11px, 2.4vw, 13px); color: #cbd5e1; text-align: center; }
       #facts b { color: #34d399; }
       .hint { color: #6b7280; font-size: 11px; }
     </style>
   </head>
   <body>
-    <h1>A four-gear train that actually turns</h1>
+    <h1>A four-gear train — 2D &amp; 3D</h1>
     <p class="sub">
-      Generated and solved by <code>@qubekit/solver</code> — involute flanks, equal
-      module, pitch circles tangent. <code>solveTrain()</code> computes each gear's
-      speed and direction and checks the chain isn't locked; every pair is phased so
-      a tooth seats into a gap. So the whole train rolls without slip.
+      One mechanism, two views. Geometry, phasing, speeds, and the lock check all
+      come from <code>@qubekit/solver</code> — <code>gear()</code> for the involute
+      profiles, <code>solveTrain()</code> for the kinematics. The 3D view extrudes
+      the very same profiles into real gears.
     </p>
-    <canvas id="c" width="900" height="520"></canvas>
+    <div class="tabs" role="group" aria-label="view">
+      <button data-tab="2d" aria-pressed="true">2D</button>
+      <button data-tab="3d" aria-pressed="false">3D</button>
+    </div>
+    <div id="view2d" class="view"><canvas id="c2d" width="900" height="460"></canvas></div>
+    <div id="view3d" class="view" hidden></div>
     <div id="facts">…</div>
-    <div class="hint">tap / click to pause</div>
-    <script type="module" src="./gears.js"></script>
+    <div class="hint">2D: schematic · 3D: drag to orbit</div>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
