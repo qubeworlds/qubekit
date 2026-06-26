@@ -45,17 +45,11 @@ export function init2D(model, cv) {
 
     ctx.clearRect(0, 0, cv.width, cv.height);
 
-    // base + bevel drive + pulley (schematic)
+    // base mount (a simple bearing block the spindle turns in)
     ctx.fillStyle = '#1a2030';
-    ctx.fillRect(X(-26), Y(geo.baseTop), 52 * L.scale, geo.baseTop * L.scale);
+    ctx.fillRect(X(-15), Y(geo.baseTop), 30 * L.scale, geo.baseTop * L.scale);
     ctx.strokeStyle = '#5b6b86'; ctx.lineWidth = 1.5 * L.dpr;
-    ctx.strokeRect(X(-26), Y(geo.baseTop), 52 * L.scale, geo.baseTop * L.scale);
-    // bevel gears (two circles at a right angle) + pulley
-    ctx.fillStyle = '#b88a4e';
-    circle(0, geo.baseTop - 6, 9, '#b88a4e', '#e9d8b6');
-    circle(16, 8, 9, '#b88a4e', '#e9d8b6');
-    ctx.fillStyle = '#9aa6b8'; ctx.fillRect(X(24), Y(13), 12 * L.scale, 10 * L.scale); // pulley
-    label('bevel drive', 0, geo.baseTop * 0.4, '#6b7484');
+    ctx.strokeRect(X(-15), Y(geo.baseTop), 30 * L.scale, geo.baseTop * L.scale);
 
     // spindle
     ctx.strokeStyle = '#7f8ea3'; ctx.lineWidth = 3 * L.dpr;

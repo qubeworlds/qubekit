@@ -27,7 +27,7 @@ export function buildGovernor() {
       const s = governor(params, omega);
       return `ω=${omega.toFixed(0)} rad/s · arm θ=${((s.theta * 180) / Math.PI).toFixed(0)}° · ` +
         `ball r=${s.ballRadius.toFixed(0)} mm · sleeve lift=${s.sleeveLift.toFixed(1)} mm · ` +
-        `<b>${s.theta > 0.06 ? 'balls fly out → sleeve rises → throttle closes' : 'at rest (below governing speed)'}</b>`;
+        `<b>${s.theta > 0.06 ? 'balls fly out → sleeve rises' : 'at rest (below governing speed)'}</b>`;
     },
   };
 }
