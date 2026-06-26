@@ -70,7 +70,7 @@ export function buildTrain(opts = {}) {
     ? `${base}<br><b style="color:#f87171">LOCKED</b> — a gear bridging two that already mesh closes a 3-gear loop; solveTrain found ${train.conflicts.length} conflict(s), the train can't turn.`
     : `${base}<br>net ratio z₁:z₄ = ${gears[0].z}:${gears[3].z} = ${Math.abs(netRatio).toFixed(3)} · idler middle · ε=${pairMesh.contactRatio.toFixed(2)} · <b>not locked ✓</b> · steam piston on wheel 1`;
 
-  const omega = locked ? 0 : (DRIVE_RPM / 60) * 2 * Math.PI * 0.06;
+  const omega = locked ? 0 : (DRIVE_RPM / 60) * 2 * Math.PI * 0.1;
   const angleAt = (i, theta0) => phase[i] + (Number.isFinite(train.rpm[i]) ? train.rpm[i] / train.rpm[0] : 0) * theta0;
   const steamAt = (theta0) => sliderCrank(steam.params, angleAt(0, theta0));
 
