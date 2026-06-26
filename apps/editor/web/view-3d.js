@@ -55,9 +55,10 @@ export function init3D(model, container) {
   const center = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, 0);
   const radius = Math.hypot(maxX - minX, maxY - minY) / 2;
 
-  // orbit state (azimuth / elevation around the train)
+  // orbit state (azimuth / elevation around the train) + zoom distance
   let az = 0.5, el = 0.42;
-  const dist = radius * 2.5;
+  let dist = radius * 2.5;
+  const minDist = radius * 1.15, maxDist = radius * 6;
   function placeCamera() {
     camera.up.set(0, 1, 0);
     camera.position.set(
@@ -68,17 +69,43 @@ export function init3D(model, container) {
     camera.lookAt(center);
   }
 
-  let dragging = false, px = 0, py = 0;
-  renderer.domElement.style.touchAction = 'none';
-  renderer.domElement.addEventListener('pointerdown', (e) => { dragging = true; px = e.clientX; py = e.clientY; });
-  window.addEventListener('pointerup', () => (dragging = false));
-  window.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    az -= (e.clientX - px) * 0.01;
-    el = Math.max(-1.3, Math.min(1.3, el + (e.clientY - py) * 0.01));
-    px = e.clientX; py = e.clientY;
-    placeCamera();
+  // Input: one finger / drag = orbit, two fingers = pinch zoom, wheel = zoom.
+  const dom = renderer.domElement;
+  dom.style.touchAction = 'none';
+  const pointers = new Map(); // pointerId -> {x, y}
+  let pinchStart = 0, distAtPinchStart = 0;
+  const clampDist = (d) => Math.max(minDist, Math.min(maxDist, d));
+  const pinchSpan = () => {
+    const [a, b] = [...pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  dom.addEventListener('pointerdown', (e) => {
+    dom.setPointerCapture?.(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) { pinchStart = pinchSpan(); distAtPinchStart = dist; }
   });
+  const drop = (e) => pointers.delete(e.pointerId);
+  dom.addEventListener('pointerup', drop);
+  dom.addEventListener('pointercancel', drop);
+  dom.addEventListener('pointermove', (e) => {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size >= 2) {
+      if (pinchStart > 0) { dist = clampDist(distAtPinchStart * (pinchStart / pinchSpan())); placeCamera(); }
+    } else {
+      az -= dx * 0.01;
+      el = Math.max(-1.3, Math.min(1.3, el + dy * 0.01));
+      placeCamera();
+    }
+  });
+  dom.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    dist = clampDist(dist * Math.exp(e.deltaY * 0.001));
+    placeCamera();
+  }, { passive: false });
 
   function resize() {
     const w = container.clientWidth || 900, h = container.clientHeight || 540;
