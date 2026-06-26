@@ -60,7 +60,7 @@ export function init2D(model, cv) {
     else fp.pts.forEach((pt, i) => { const A = P.x(ox + pt[0]), B = P.z(oz + pt[1]); i ? ctx.lineTo(A, B) : ctx.moveTo(A, B); });
     ctx.closePath();
   }
-  function drawInset(carry) {
+  function drawInset(carry, placed) {
     const pad = 10 * L.dpr, w = Math.min(cv.width * 0.4, (sorter.w + 30) * L.scale * 1.1);
     const s = (w - pad * 2) / (sorter.w + 24);
     const h = (sorter.d + 24) * s + pad * 2;
@@ -79,9 +79,10 @@ export function init2D(model, cv) {
       // hole = footprint + clearance (dashed teal)
       ctx.setLineDash([4 * L.dpr, 3 * L.dpr]); ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 1.4 * L.dpr;
       footPath(P, hx, hz, model.footPoly(it.foot, clearance)); ctx.stroke(); ctx.setLineDash([]);
-      // item footprint (solid colour) seated in the hole
-      ctx.fillStyle = i === carry ? it.color : it.color + 'cc'; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1 * L.dpr;
-      footPath(P, hx, hz, model.footPoly(it.foot, 0)); ctx.fill(); ctx.stroke();
+      // item footprint: solid once dropped in (placed), faint while still on the table
+      footPath(P, hx, hz, model.footPoly(it.foot, 0));
+      if (placed[i] || i === carry) { ctx.fillStyle = it.color; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1 * L.dpr; ctx.stroke(); }
+      else { ctx.fillStyle = it.color + '33'; ctx.fill(); ctx.strokeStyle = it.color + '88'; ctx.lineWidth = 1 * L.dpr; ctx.stroke(); }
     });
   }
 
@@ -104,8 +105,14 @@ export function init2D(model, cv) {
     ctx.fillRect(X(sr - sorter.w / 2), Y(sorter.h), sorter.w * L.scale, sorter.h * L.scale);
     ctx.strokeRect(X(sr - sorter.w / 2), Y(sorter.h), sorter.w * L.scale, sorter.h * L.scale);
 
-    // resting items (skip the carried one)
-    items.forEach((it, i) => { if (i !== carry) itemIcon(radial(it.pos), 0, it, it.color); });
+    // items: carried one rides the gripper; placed ones stay seated in their
+    // holes (in the box); the rest sit on the table.
+    const placed = model.placedMask(phase);
+    items.forEach((it, i) => {
+      if (i === carry) return;
+      if (placed[i]) itemIcon(radial(it.perch), it.perchBaseY, it, it.color);
+      else itemIcon(radial(it.pos), 0, it, it.color);
+    });
 
     // riser + base column
     capsule(0, 0, 0, 26, 20, '#3a4154');
@@ -120,8 +127,10 @@ export function init2D(model, cv) {
     dot(r[2], h[2], 7, '#303644', '#2dd4bf'); // elbow
     dot(r[3], h[3], 5.5, '#303644', '#2dd4bf'); // wrist
 
-    // gripper (two fingers across, opening with 1−grip)
-    const open = (1 - grip) * 22 + 6, tipR = r[4], tipY = h[4], fl = 26;
+    // gripper (two fingers across); closes onto the held item's width (stopgap
+    // until jolt does real contact) so it doesn't clip inside the object
+    const carriedHalf = carry >= 0 ? model.footHalf(items[carry].foot) : 12;
+    const open = carriedHalf + 4 + (1 - grip) * 18, tipR = r[4], tipY = h[4], fl = 26;
     capsule(tipR - open, tipY + fl, tipR - open, tipY, 4, '#e2e8f4');
     capsule(tipR + open, tipY + fl, tipR + open, tipY, 4, '#e2e8f4');
     capsule(tipR - open, tipY + fl, tipR + open, tipY + fl, 4, '#e2e8f4');
@@ -133,7 +142,7 @@ export function init2D(model, cv) {
     const deg = (x) => (x * 180 / Math.PI).toFixed(0);
     label(`yaw ${deg(pose.yaw)}°  shoulder ${deg(pose.joints.shoulder)}°  elbow ${deg(pose.joints.elbow)}°`, 12 * L.dpr, 18 * L.dpr, '#9aa6bd');
     label(leg, 12 * L.dpr, 34 * L.dpr, pose.reachable ? '#34d399' : '#f87171');
-    drawInset(carry);
+    drawInset(carry, placed);
   }
 
   function frame(t) {

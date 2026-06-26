@@ -162,12 +162,19 @@ export function init3D(model, container) {
     shoulder.rotation.z = pose.shoulder;
     elbow.rotation.z = j.elbow;
     wrist.rotation.z = j.wrist;
-    const open = (1 - g) * 16 + 6; // finger spread across Z
+    // fingers close onto the held item's width (stopgap until jolt does real
+    // contact) so they sit on the surface instead of clipping inside.
+    const carriedHalf = carry >= 0 ? model.footHalf(items[carry].foot) : 12;
+    const open = carriedHalf + 5 + (1 - g) * 18; // finger spread across Z
     fA.position.z = -open; fB.position.z = open;
 
+    // placed items stay seated in their holes until the episode resets, so all
+    // four accumulate in the box (with a pause) before returning to the table.
+    const placed = model.placedMask(phase);
     const tip = pose.points[4];
     items.forEach((it, i) => {
       if (i === carry) { itemMeshes[i].position.set(tip[0], Math.max(0, tip[1] - it.height), tip[2]); itemMeshes[i].rotation.set(0, 0, 0); }
+      else if (placed[i]) { itemMeshes[i].position.set(it.perch[0], it.perchBaseY, it.perch[2]); itemMeshes[i].rotation.set(0, 0, 0); }
       else restItem(it, itemMeshes[i]);
     });
   }

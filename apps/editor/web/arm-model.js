@@ -73,16 +73,28 @@ export function buildArm() {
   const approach = 130; // hover height above a pick/drop before descending (mm)
   const home = [70, 340, 250];
 
+  // Where a placed item rests, seated in its hole (mesh base at this y), and the
+  // gripper-tip height that leaves it exactly there (carried base = tip − height),
+  // so release has no visual pop. Items perch proud of the plate so all four read
+  // as "sorted" during the end-of-episode pause.
+  for (const s of items) {
+    s.perchBaseY = sorter.h - 0.35 * s.height;
+    s.placeTipY = s.perchBaseY + s.height; // = sorter.h + 0.65·height
+    s.perch = [s.hole[0], s.perchBaseY, s.hole[2]];
+  }
+
   // Waypoints: home → for each item {over-pick, pick, close, lift, over-drop,
-  // place (descend into the hole), release, lift} → home. grip 0=open 1=closed.
+  // place (seat in the hole), release, lift} → a HOLD while all four sit sorted →
+  // home. grip 0=open 1=closed. The hold is the "pause when all 4 are placed";
+  // the phase wrapping back to 0 is the reset (items return to the table).
   const wps = [];
   const add = (pos, grip, carry, label) => wps.push({ pos, grip, carry, label });
   add(home, 0, -1, 'home');
   items.forEach((s, i) => {
     const top = [s.pos[0], s.height, s.pos[2]];
     const over = [s.pos[0], s.height + approach, s.pos[2]];
-    const place = [s.hole[0], s.hole[1] + 4, s.hole[2]]; // tip just above the plate; item descends in
-    const overHole = [s.hole[0], s.hole[1] + approach, s.hole[2]];
+    const place = [s.hole[0], s.placeTipY, s.hole[2]];
+    const overHole = [s.hole[0], s.placeTipY + approach, s.hole[2]];
     add(over, 0, -1, `over ${s.name}`);
     add(top, 0, -1, `pick ${s.name}`);
     add(top, 1, i, `grip ${s.name}`);
@@ -92,7 +104,8 @@ export function buildArm() {
     add(place, 0, -1, `release ${s.name}`);
     add(overHole, 0, -1, `clear ${s.name}`);
   });
-  add(home, 0, -1, 'home');
+  // pause: arm parks at home with all four sorted (repeated waypoints = dwell)
+  for (let k = 0; k < 6; k++) add(home, 0, -1, 'all placed — pause');
 
   const lerp = (a, b, t) => a + (b - a) * t;
   const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
