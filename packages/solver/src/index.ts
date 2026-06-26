@@ -6,3 +6,4 @@ export * from './body.js';
 export * from './constraints.js';
 export * from './solve.js';
 export * from './gear.js';
+export * from './mechanism.js';
