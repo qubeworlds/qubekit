@@ -45,11 +45,8 @@ export function init2D(model, cv) {
 
     ctx.clearRect(0, 0, cv.width, cv.height);
 
-    // base mount (a simple bearing block the spindle turns in)
-    ctx.fillStyle = '#1a2030';
-    ctx.fillRect(X(-15), Y(geo.baseTop), 30 * L.scale, geo.baseTop * L.scale);
-    ctx.strokeStyle = '#5b6b86'; ctx.lineWidth = 1.5 * L.dpr;
-    ctx.strokeRect(X(-15), Y(geo.baseTop), 30 * L.scale, geo.baseTop * L.scale);
+    // bevel-gear right-angle drive (vertical spindle ↔ horizontal belt shaft)
+    drawBevelDrive();
 
     // spindle
     ctx.strokeStyle = '#7f8ea3'; ctx.lineWidth = 3 * L.dpr;
@@ -104,6 +101,49 @@ export function init2D(model, cv) {
   function label(text, x, y, color) {
     ctx.fillStyle = color; ctx.font = `${10 * L.dpr}px ui-monospace, monospace`; ctx.textAlign = 'center';
     ctx.fillText(text, X(x), Y(y)); ctx.textAlign = 'start';
+  }
+  function fillTri(a, b, c, fill, stroke) {
+    ctx.beginPath(); ctx.moveTo(X(a[0]), Y(a[1])); ctx.lineTo(X(b[0]), Y(b[1])); ctx.lineTo(X(c[0]), Y(c[1])); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 1.2 * L.dpr; ctx.stroke();
+  }
+  function bevelTeeth(apex, heel, n, len, color) {
+    const dx = heel[0] - apex[0], dy = heel[1] - apex[1], d = Math.hypot(dx, dy);
+    const nx = -dy / d, ny = dx / d; // edge normal
+    ctx.strokeStyle = color; ctx.lineWidth = 1 * L.dpr;
+    for (let i = 1; i <= n; i++) {
+      const t = 0.5 + 0.5 * (i / n), x = apex[0] + dx * t, y = apex[1] + dy * t;
+      ctx.beginPath(); ctx.moveTo(X(x), Y(y)); ctx.lineTo(X(x + nx * len), Y(y + ny * len)); ctx.stroke();
+    }
+  }
+  // Bevel-gear right-angle drive: a vertical-axis cone gear (on the spindle)
+  // meshing a horizontal-axis cone gear (on the belt shaft), pitch-cone angles
+  // from solver bevelPair(). The two cones share the apex (the mesh corner).
+  function drawBevelDrive() {
+    const g1 = model.bevel.coneAngle1;
+    const ay = 12, slant = 16;
+    const Rh = slant * Math.sin(g1), hy = ay + slant * Math.cos(g1);
+    // vertical gear (steel) — apex at the corner, opens up toward the spindle
+    fillTri([0, ay], [-Rh, hy], [Rh, hy], '#9ca3af', '#e5e7eb');
+    bevelTeeth([0, ay], [-Rh, hy], 5, 2, '#e5e7eb');
+    bevelTeeth([0, ay], [Rh, hy], 5, 2, '#e5e7eb');
+    // horizontal gear (brass) — same apex, opens right along the shaft
+    fillTri([0, ay], [Rh, ay + Rh], [Rh, ay - Rh], '#b88a4e', '#e9d8b6');
+    bevelTeeth([0, ay], [Rh, ay - Rh], 5, -2, '#e9d8b6');
+    // horizontal shaft + belt pulley (with a spinning spoke)
+    const sx = Rh, px = sx + 20, py = ay;
+    ctx.strokeStyle = '#7f8ea3'; ctx.lineWidth = 3 * L.dpr; line(sx, py, px, py);
+    circle(px, py, 6.5, '#3a4253', '#9aa6b8');
+    ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1.6 * L.dpr;
+    line(px, py, px + 5.5 * Math.cos(spin), py + 5.5 * Math.sin(spin));
+    // belt — two strands running off to the engine, dashes moving at speed
+    ctx.strokeStyle = '#454d5e'; ctx.lineWidth = 2.6 * L.dpr;
+    ctx.setLineDash([5 * L.dpr, 4 * L.dpr]); ctx.lineDashOffset = -spin * 16 * L.dpr;
+    line(px, py + 6.5, px + 28, py + 6.5); line(px, py - 6.5, px + 28, py - 6.5);
+    ctx.setLineDash([]);
+    // 90° marker between the vertical and horizontal axes
+    ctx.strokeStyle = '#6b7484'; ctx.lineWidth = 1 * L.dpr;
+    ctx.beginPath(); ctx.arc(X(0), Y(ay), 8 * L.scale, -Math.PI / 2, 0); ctx.stroke();
+    label('90°', 7, ay + 7, '#6b7484');
   }
   function spinIndicator() {
     const cxp = cv.width - 34 * L.dpr, cyp = 30 * L.dpr, r = 12 * L.dpr;

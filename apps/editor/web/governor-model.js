@@ -2,7 +2,7 @@
 // spindle speed ω is the live input (a slider); the solver returns the arm angle
 // and sleeve lift, and the view draws a front elevation that responds.
 
-import { governor } from './solver/index.js';
+import { governor, bevelPair } from './solver/index.js';
 
 export function buildGovernor() {
   // Tuned so the balls sweep their full travel across the slider band: balls
@@ -15,11 +15,14 @@ export function buildGovernor() {
   let omega = 11;
 
   // front-elevation layout constants (mm, y up)
-  const geo = { yHub: 112, baseTop: 30, ballR: 11, sleeveRest: 42, sleeveW: 28, sleeveH: 10, springTop: 104 };
+  const geo = { yHub: 112, baseTop: 23, ballR: 11, sleeveRest: 42, sleeveW: 28, sleeveH: 10, springTop: 104 };
+
+  // bevel-gear right-angle drive: vertical spindle axis ↔ horizontal belt shaft.
+  const bevel = bevelPair(16, 16); // equal teeth → 45°/45° cones
 
   return {
     kind: 'governor',
-    params, geo, minOmega, maxOmega,
+    params, geo, bevel, minOmega, maxOmega,
     get omega() { return omega; },
     set omega(v) { omega = Math.max(minOmega, Math.min(maxOmega, v)); },
     state() { return governor(params, omega); },
