@@ -28,7 +28,9 @@ export function buildGovernor() {
     state() { return governor(params, omega); },
     factsHTML() {
       const s = governor(params, omega);
-      return `ω=${omega.toFixed(0)} rad/s · arm θ=${((s.theta * 180) / Math.PI).toFixed(0)}° · ` +
+      const rev = omega / (2 * Math.PI); // bevel is 1:1, so shaft = spindle
+      return `ω=${omega.toFixed(0)} rad/s = ${rev.toFixed(1)} turns/s (${Math.round(rev * 60)} rpm) · ` +
+        `arm θ=${((s.theta * 180) / Math.PI).toFixed(0)}° · ` +
         `ball r=${s.ballRadius.toFixed(0)} mm · sleeve lift=${s.sleeveLift.toFixed(1)} mm · ` +
         `<b>${s.theta > 0.06 ? 'balls fly out → sleeve rises' : 'at rest (below governing speed)'}</b>`;
     },

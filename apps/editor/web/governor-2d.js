@@ -159,7 +159,7 @@ export function init2D(model, cv) {
     const dt = (t - last) / 1000; last = t;
     const target = model.state().theta;
     thetaDisp += (target - thetaDisp) * Math.min(1, dt * 6); // ease
-    spin += model.omega * dt * 0.25;
+    spin += model.omega * dt; // true spindle/shaft rate (1:1 bevel) — rad/s
     draw();
     raf = requestAnimationFrame(frame);
   }
