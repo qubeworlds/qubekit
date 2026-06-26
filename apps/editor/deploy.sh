@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 #
-# Deploy the QubeKit preview (a static-asset qube) to qubepods.
+# Deploy the QubeKit editor (a static-asset Qube) to qubepods.
 #
 # One-time auth — mint a DEPLOY-scoped token in the qubepods console
 # (app.qubepods.com, project `qubekit`), then:
 #   qube pod login --url https://api.qubepods.com --token <deploy-token>
-# It is saved in ~/.qube/pods.toml (gitignored location). NEVER hardcode the
-# token here — this repo is public.
+# It is saved in ~/.qube/pods.toml. NEVER hardcode the token here — this repo
+# is public.
 #
 # Then, from anywhere:
-#   apps/preview/deploy.sh
+#   apps/editor/deploy.sh
 #
-# Overrides: QUBEPODS_TOKEN (skip pods.toml), QUBEPODS_API, QUBEPODS_ENV.
-# Live URL: https://qubekit-preview.qubepod.app/
+# Note: `qube pod deploy` is component-only in the pre-alpha CLI; a static-asset
+# Qube ships via this direct POST /api/deploy (the API accepts a component-less
+# bundle). Overrides: QUBEPODS_TOKEN (skip pods.toml), QUBEPODS_API, QUBEPODS_ENV.
+# Live URL: https://qubekit-editor.qubepod.app/
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,9 +23,9 @@ ENVIRONMENT="${QUBEPODS_ENV:-production}"
 TOKEN="${QUBEPODS_TOKEN:-$(sed -n 's/.*token *= *"\(qube_[A-Za-z0-9]*\)".*/\1/p' "${HOME}/.qube/pods.toml" 2>/dev/null | head -1)}"
 [ -n "${TOKEN:-}" ] || { echo "no deploy token — run: qube pod login --url $API --token <t>" >&2; exit 1; }
 
-# Rebuild the sim bundle if esbuild is available (Qubonaut ships the committed
-# copy; here we keep it fresh).
-command -v esbuild >/dev/null && "$DIR/build.sh" || echo "(esbuild not found — shipping committed web/qubekit-sim.js)"
+# Refresh web/solver from @qubekit/solver if the toolchain is present; otherwise
+# ship the committed copy (the Qubonaut shell only has web/).
+command -v pnpm >/dev/null && "$DIR/build.sh" || echo "(pnpm not found — shipping committed web/solver)"
 
 ZIP="$(mktemp -u).zip"
 trap 'rm -f "$ZIP"' EXIT
