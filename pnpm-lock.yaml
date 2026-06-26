@@ -8,6 +8,14 @@ importers:
 
   .: {}
 
+  packages/client: {}
+
+  packages/overlay: {}
+
+  packages/schema: {}
+
+  packages/sim: {}
+
   packages/solver:
     devDependencies:
       typescript:

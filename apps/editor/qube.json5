@@ -1,0 +1,13 @@
+{
+  $schema: "https://q64.dev/schema/qube.json5",
+  // An APPLICATION Qube (uppercase): runnable, deployed to Qubepods, gets a URL.
+  // snake_case dotted segments, no dashes.
+  name: "qubeworlds.qubekit.editor",
+  version: "0.0.1",
+  license: "MIT OR Apache-2.0",
+  description: "QubeKit editor — the deployable application Qube. A static-asset qube: web/index.html loads the shared quine 3D engine from the CDN, mounts the Build/Simulate overlay, and drives the runtime. `qube deploy` ships it to Qubepods under a *.qubepod.app URL. No q64 compile, no backend (like blackbird / qube_rocks).",
+
+  // Static-site qube: `qube deploy` ships the web/ tree as the pod's public
+  // assets. `notFound: single-page-application` serves index.html for unmatched routes.
+  static: { dir: "web", notFound: "single-page-application" },
+}

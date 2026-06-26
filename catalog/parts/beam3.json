@@ -1,0 +1,69 @@
+{
+  "id": "beam3",
+  "name": "Beam (3)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/beam_3.glb",
+  "mass": 0.012,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "hole0",
+      "type": "pin_socket",
+      "localPos": [
+        -0.008,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole1",
+      "type": "pin_socket",
+      "localPos": [
+        0.0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    },
+    {
+      "id": "hole2",
+      "type": "pin_socket",
+      "localPos": [
+        0.008,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed",
+      "diameter": 0.005
+    }
+  ]
+}

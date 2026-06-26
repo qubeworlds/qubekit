@@ -1,0 +1,29 @@
+{
+  "id": "gear36",
+  "name": "Gear (36)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/gear_36.glb",
+  "mass": 0.011,
+  "material": "plastic",
+  "teeth": 36,
+  "ports": [
+    {
+      "id": "c",
+      "type": "gear_center",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "description": "QubeKit — a programmable mechanical construction environment for Qubeworlds.",
+  "license": "MIT OR Apache-2.0",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "setup": "./init.sh"
   }
 }

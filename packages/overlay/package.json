@@ -1,0 +1,12 @@
+{
+  "name": "@qubekit/overlay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build/Simulate Mode UI — Svelte 5 scene overlay, touch-first (iPad edit / phone run).",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo \"vite/svelte build wired in Phase 5\"",
+    "test": "echo \"no tests yet\""
+  }
+}

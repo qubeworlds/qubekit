@@ -1,0 +1,29 @@
+{
+  "id": "gear8",
+  "name": "Gear (8)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/gear_8.glb",
+  "mass": 0.003,
+  "material": "plastic",
+  "teeth": 8,
+  "ports": [
+    {
+      "id": "c",
+      "type": "gear_center",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

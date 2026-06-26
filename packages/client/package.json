@@ -1,0 +1,13 @@
+{
+  "name": "@qubekit/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Construction client: snap resolution, optimistic apply, qubegame transport glue.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo \"no tests yet\""
+  }
+}

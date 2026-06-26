@@ -1,0 +1,55 @@
+# CLAUDE.md — QubeKit
+
+Working notes for AI sessions. QubeKit is a programmable mechanical construction
+kit (beams, gears, axles, motors, sensors, logic) and the flagship demo for the
+Qubeworlds stack: build a machine together in the browser, program it in Q64,
+simulate it in Quine, publish it on Qubepods. Vision in `Plan.md`; sequencing in
+`docs/PHASED_PLAN.md`.
+
+## The two deployable units (q64 vocabulary — get the case right)
+
+- **runtime = a qube** (lowercase = *library*, `type: "library"`, no `main`).
+  `runtime/` builds `qubeworlds.qubekit.runtime` and is published to the
+  **Continuum** (`qube publish`). It's the portable construction model the
+  editor and any world-runner link.
+- **editor = a Qube** (uppercase = *application*, runnable). `apps/editor/` is a
+  static-asset Qube `qubeworlds.qubekit.editor`, deployed to **Qubepods**
+  (`qube deploy`) where it gets a URL.
+
+Qube names are **snake_case dotted, no hyphens** (a hyphen is rejected by `qube`).
+
+## Where things live
+
+- `packages/` — TypeScript libraries (pnpm workspace): `@qubekit/solver` (the
+  constraint solver + physically-correct involute gears — the "resolver"),
+  `@qubekit/schema`, `@qubekit/sim` (portable authority), `@qubekit/client`
+  (snap + transport glue), `@qubekit/overlay` (Svelte 5 UI).
+- `runtime/` — the q64 library qube (parts/controllers in `.q`). Currently thin;
+  the TS `@qubekit/sim` holds the running authority until q64 component emit
+  lands (upstream `q64-lang/q64#36`).
+- `catalog/` — part definitions as data. `examples/` — example worlds.
+- `specs/` — parts / assembly / protocol contracts. `tools/` — generators.
+
+## Conventions
+
+- **Don't build q64 from source.** The `q64` / `qube` CLI comes as a prebuilt
+  binary from the `q64-lang/q64` GitHub release (`init.sh` / the session hook
+  fetches it). The language lives in its own repo; never vendor it here.
+- **Metric everywhere.** Part geometry in **millimetres** (gear `module` in mm),
+  the 3D scene in **metres** — convert only at that boundary (`mmToM`).
+- **Gears are physical, not decorative.** Two gears mesh only if they share a
+  module + pressure angle, sit at centre distance `m·(z₁+z₂)/2`, and have a
+  contact ratio ≥ 1. `@qubekit/solver`'s `canMesh` is the law; don't fake it.
+- **Replicate operations, not snapshots.** Multiplayer state is a deterministic
+  op log over a constraint graph (see `specs/protocol.md`), not raw transforms.
+- **This repo is public.** Never commit secrets, account ids, or emails.
+- Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`).
+
+## Build & test
+
+```sh
+pnpm install
+pnpm -r run test        # @qubekit/solver is fully tested (vitest)
+pnpm -r run typecheck
+pnpm -r run build
+```

@@ -1,0 +1,25 @@
+{
+  $schema: "https://q64.dev/schema/qube.json5",
+  // A LIBRARY qube (lowercase): exports a surface, no `main`, linked into other
+  // qubes. Published to the Continuum (`qube publish`) so the editor Qube and any
+  // Qubepods world-runner link the same construction logic.
+  // snake_case dotted segments, no dashes.
+  name: "qubeworlds.qubekit.runtime",
+  version: "0.0.0",
+  license: "MIT OR Apache-2.0",
+  description: "QubeKit runtime — the portable construction model in ordinary Q64: Part/SnapPort/Connection/Assembly/Controller as records + faces, controllers as @realtime fns. The reference authority a host links to apply ops and resolve constraints. (Q64 stays domain-agnostic — no part/snap language keywords.)",
+  type: "library",
+  entry: "src/lib.q",
+
+  // Controllers are deterministic real-time logic. The effect checker enforces
+  // @realtime (no alloc / no suspend / no panic).
+  effects: {
+    declared: ["@realtime"],
+  },
+
+  // Component emit + the twin/shared-state path depend on upstream q64 work
+  // tracked in q64-lang/q64#36 (non-scalar WIT lifting, mutation-op codegen).
+  // Until then this builds as a plain library and the TS @qubekit/sim holds the
+  // running authority; this qube is the typed model it mirrors.
+  // component: { emit: true, world: "qubekit-runtime" },
+}

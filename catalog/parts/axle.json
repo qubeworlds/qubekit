@@ -1,0 +1,55 @@
+{
+  "id": "axle",
+  "name": "Axle",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/axle.glb",
+  "mass": 0.002,
+  "material": "metal",
+  "ports": [
+    {
+      "id": "a",
+      "type": "axle",
+      "localPos": [
+        0,
+        0,
+        -0.04
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle_bearing",
+        "axle_socket",
+        "gear_center",
+        "wheel_hub",
+        "motor_out"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    },
+    {
+      "id": "b",
+      "type": "axle",
+      "localPos": [
+        0,
+        0,
+        0.04
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle_bearing",
+        "axle_socket",
+        "gear_center",
+        "wheel_hub",
+        "motor_out"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

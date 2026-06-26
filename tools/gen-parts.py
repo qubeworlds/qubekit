@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Parametric part-mesh generator → OBJ, shipped in the preview qube.
+
+Emits machined-metal parts (gears with teeth + hub + spokes, axles, wheels,
+beams, motor) the quine engine loads as gltf-source assets. Geometry only —
+colour/metalness comes from the scene entity's material (steel vs brass).
+
+Run: python3 tools/gen-parts.py   →   apps/preview/parts/*.obj
+"""
+import math, os, sys, json
+
+TAU = math.pi * 2
+
+def rotx90(m):
+    # rotate a mesh +90° about X so a Z-axis part (gear disc / cylinder) stands
+    # with its axis along Y — the engine's OBJ-normalize axis. Then the loader
+    # centres X/Z and the part rotates about its OWN centre (spin axis = Y).
+    m.v = [(x, -z, y) for (x, y, z) in m.v]
+
+class Mesh:
+    def __init__(self): self.v = []; self.f = []
+    def add_v(self, x, y, z): self.v.append((x, y, z)); return len(self.v)  # 1-based
+    def tri(self, a, b, c): self.f.append((a, b, c))
+    def quad(self, a, b, c, d): self.f.append((a, b, c)); self.f.append((a, c, d))
+    def obj(self):
+        out = ["# QubeKit parametric part (generated)"]
+        for (x, y, z) in self.v: out.append(f"v {x:.5f} {y:.5f} {z:.5f}")
+        # flat normals per triangle so metal reads crisply
+        for (a, b, c) in self.f:
+            ax, ay, az = self.v[a-1]; bx, by, bz = self.v[b-1]; cx, cy, cz = self.v[c-1]
+            ux, uy, uz = bx-ax, by-ay, bz-az; vx, vy, vz = cx-ax, cy-ay, cz-az
+            nx, ny, nz = uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx
+            l = math.sqrt(nx*nx+ny*ny+nz*nz) or 1.0
+            out.append(f"vn {nx/l:.4f} {ny/l:.4f} {nz/l:.4f}")
+        for i, (a, b, c) in enumerate(self.f, 1):
+            out.append(f"f {a}//{i} {b}//{i} {c}//{i}")
+        return "\n".join(out) + "\n"
+
+# Metric gear standard: pitch diameter d = module · teeth (d = m·z), so pitch
+# radius r = m·z/2. Meshing gears share one module → centre distance r1+r2 =
+# m(z1+z2)/2, and tooth size is identical across the set. Addendum = m, dedendum
+# = 1.25 m (ISO), tooth thickness ≈ half the circular pitch.
+# Scene units are MILLIMETRES. Module m = 1 mm (ISO): gear z=12 → d = m·z = 12 mm,
+# outer d_a = d + 2m = 14 mm. Standard construction-kit sizing.
+MODULE = 1.0
+
+def gear(teeth, module=MODULE, th=4.0):
+    """Involute-ish spur gear in the XY plane (metric: r = m·z/2), `teeth` teeth."""
+    mesh = Mesh()
+    r = module * teeth / 2.0          # pitch radius (d = m·z → r = m·z/2)
+    tip = r + 1.0 * module            # addendum = m  (ISO standard)
+    root = r - 1.25 * module          # dedendum = 1.25 m (ISO standard; 0.25 m clearance)
+    hub = max(module * 1.2, r * 0.42) # working depth at a=r1+r2 is 2·addendum = 2 m
+    # one tooth per 2π/z: a wide flat tip land with short flanks, ~half is gap
+    def rprof(a):
+        seg = (a % (TAU/teeth)) / (TAU/teeth)
+        if 0.30 <= seg <= 0.70: return tip
+        if 0.22 <= seg < 0.30:  return root + (tip-root) * (seg-0.22)/0.08
+        if 0.70 < seg <= 0.78:  return root + (tip-root) * (0.78-seg)/0.08
+        return root
+    m = mesh
+    samples = max(96, teeth * 16)
+    angs = [i/samples*TAU for i in range(samples)]
+    top = [m.add_v(rprof(a)*math.cos(a), rprof(a)*math.sin(a),  th/2) for a in angs]
+    bot = [m.add_v(rprof(a)*math.cos(a), rprof(a)*math.sin(a), -th/2) for a in angs]
+    ctop = m.add_v(0, 0,  th/2); cbot = m.add_v(0, 0, -th/2)
+    for i in range(samples):
+        a, b = i, (i+1) % samples
+        m.tri(ctop, top[a], top[b])         # front face
+        m.tri(cbot, bot[b], bot[a])         # back face
+        m.quad(bot[a], bot[b], top[b], top[a])  # rim wall
+    # raised hub boss (a short cylinder) for the bolted-centre look
+    hb = hub; hz = th*0.9; hn = 24
+    htop = [m.add_v(hb*math.cos(i/hn*TAU), hb*math.sin(i/hn*TAU),  hz) for i in range(hn)]
+    hbot = [m.add_v(hb*math.cos(i/hn*TAU), hb*math.sin(i/hn*TAU),  th/2) for i in range(hn)]
+    hc = m.add_v(0, 0, hz)
+    for i in range(hn):
+        a, b = i, (i+1) % hn
+        m.tri(hc, htop[a], htop[b]); m.quad(hbot[a], hbot[b], htop[b], htop[a])
+    return m
+
+def cylinder(r, h, n=28):
+    m = Mesh()
+    top = [m.add_v(r*math.cos(i/n*TAU), r*math.sin(i/n*TAU),  h/2) for i in range(n)]
+    bot = [m.add_v(r*math.cos(i/n*TAU), r*math.sin(i/n*TAU), -h/2) for i in range(n)]
+    ct = m.add_v(0, 0, h/2); cb = m.add_v(0, 0, -h/2)
+    for i in range(n):
+        a, b = i, (i+1) % n
+        m.tri(ct, top[a], top[b]); m.tri(cb, bot[b], bot[a]); m.quad(bot[a], bot[b], top[b], top[a])
+    return m
+
+def box(hx, hy, hz):
+    m = Mesh()
+    p = [m.add_v(x*hx, y*hy, z*hz) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+    # corners index: (x,y,z) → 4x+2y+z with x,y,z in {0,1}
+    def c(x, y, z): return p[4*x+2*y+z]
+    m.quad(c(0,0,0), c(0,1,0), c(0,1,1), c(0,0,1))  # -x
+    m.quad(c(1,0,0), c(1,0,1), c(1,1,1), c(1,1,0))  # +x
+    m.quad(c(0,0,0), c(0,0,1), c(1,0,1), c(1,0,0))  # -y
+    m.quad(c(0,1,0), c(1,1,0), c(1,1,1), c(0,1,1))  # +y
+    m.quad(c(0,0,0), c(1,0,0), c(1,1,0), c(0,1,0))  # -z
+    m.quad(c(0,0,1), c(0,1,1), c(1,1,1), c(1,0,1))  # +z
+    return m
+
+def gr(teeth): return 0.12 + teeth * 0.018  # matches the preview's gearRadius
+
+def main():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = os.path.join(root, "apps/preview/parts"); os.makedirs(out, exist_ok=True)
+    parts = {}
+    # Realistic millimetre sizes (module 1 mm). gear z=12 → 12 mm pitch, 14 mm outer.
+    for t in (8, 12, 24, 36): parts[f"gear{t}"] = gear(t)
+    parts["motor"] = cylinder(9, 30)     # Ø18 x 30 mm can motor (shaft along Z, into the gear)
+    parts["axle"]  = cylinder(2, 32)     # Ø4 x 32 mm shaft
+    parts["wheel"] = cylinder(15, 8)     # Ø30 x 8 mm wheel
+    parts["beam3"] = box(12, 4, 4)       # 24 x 8 x 8 mm beam (holes at 8 mm pitch)
+    parts["beam5"] = box(20, 4, 4)       # 40 mm
+    parts["beam7"] = box(28, 4, 4)       # 56 mm
+    parts["pin"]   = cylinder(2.5, 16)   # Ø5 x 16 mm pin
+    # Spinning / axled parts stand axis-along-Y so they rotate about their own
+    # centre (the loader centres X/Z). Beams (structural) stay as authored.
+    for name in ("gear8", "gear12", "gear24", "gear36", "motor", "axle", "wheel", "pin"):
+        rotx90(parts[name])
+    dims = {}
+    for name, m in parts.items():
+        open(os.path.join(out, name + ".obj"), "w").write(m.obj())
+        ys = [v[1] for v in m.v]
+        dims[name] = {"yext": round(max(ys) - min(ys), 4)}
+    open(os.path.join(out, "dims.json"), "w").write(json.dumps(dims))
+    print(f"wrote {len(parts)} parts + dims.json → apps/preview/parts/:", ", ".join(sorted(parts)))
+
+if __name__ == "__main__": main()
