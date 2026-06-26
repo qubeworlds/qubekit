@@ -31,7 +31,7 @@ const MECH = {
     build: () => buildArm(), v2: arm2D, v3: arm3D,
   },
   drone: {
-    label: 'Drone', has3D: true, control: 'slider',
+    label: 'Drone', has3D: true, control: 'rpm4',
     build: () => buildDrone(), v2: drone2D, v3: drone3D,
   },
 };
