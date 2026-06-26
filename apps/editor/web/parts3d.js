@@ -13,6 +13,17 @@ import { gear } from './solver/index.js';
 
 const metal = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.88, roughness: 0.38 });
 
+// kind → builder registry. A primitive descriptor (catalog/primitives/*.json:
+// { id, kind, params, … }) resolves to a mesh through here — the same registry
+// the publisher uses to bake a .glb for the CDN and the editor uses to build a
+// part at runtime. Add a part = add a builder + a descriptor; nothing else.
+export const PART_BUILDERS = {};
+export function buildPart(descriptor) {
+  const build = PART_BUILDERS[descriptor.kind];
+  if (!build) throw new Error(`unknown primitive kind: ${descriptor.kind}`);
+  return build(descriptor.params || {});
+}
+
 // Helical spring, normalized to y ∈ [0, 1] along +Y. Set scale.y to the desired
 // free/compressed length (smaller scale.y = more compressed). `coils`, `radius`
 // (coil radius), and `wire` (wire thickness) define the spring.
@@ -56,3 +67,6 @@ export function bevelGear({ teeth, module, faceWidth, coneAngle, color = 0xb8bcc
   mesh.userData.axialLength = axial; // toe offset, for positioning at the mesh corner
   return mesh;
 }
+
+// register the implemented builders
+Object.assign(PART_BUILDERS, { spring, bevelGear });

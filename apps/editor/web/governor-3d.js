@@ -32,16 +32,16 @@ export function init3D(model, container) {
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(params.pivotRadius + 3, params.pivotRadius + 3, 6, 28), steel());
   hub.position.y = geo.yPivot; spinner.add(hub);
 
-  // arms + balls (two, opposite); pivot groups rotate about Z by ∓θ. Arms rise
-  // from the pivot to the balls (bell-crank, balls above the pivots).
+  // arms + balls (two, opposite); pivot groups rotate about Z by ±θ. Arms hang
+  // from the pivots to the balls (balls below; gravity rests them low, speed lifts).
   const arms = [];
   for (let i = 0; i < 2; i++) {
     const side = i === 0 ? 1 : -1;
     const pivot = new THREE.Group(); pivot.position.set(side * params.pivotRadius, geo.yPivot, 0); spinner.add(pivot);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(3, params.armLength, 3), steel(0x9aa6b8));
-    arm.position.y = params.armLength / 2; pivot.add(arm);
+    arm.position.y = -params.armLength / 2; pivot.add(arm);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(geo.ballR, 28, 20), brass());
-    ball.position.y = params.armLength; pivot.add(ball);
+    ball.position.y = -params.armLength; pivot.add(ball);
     arms.push({ pivot, side });
   }
 
@@ -73,9 +73,9 @@ export function init3D(model, container) {
   spoke.position.set(32, 0, 0); hShaft.add(spoke);
 
   // --- camera framing + orbit/zoom ---
-  const topExtent = geo.yPivot + params.armLength + geo.ballR;
-  const center = new THREE.Vector3(0, (baseY + topExtent) / 2, 0);
-  const radius = Math.max(topExtent - baseY, 2 * (params.pivotRadius + params.armLength)) / 2;
+  const top = geo.spindleTop;
+  const center = new THREE.Vector3(0, (baseY + top) / 2, 0);
+  const radius = Math.max(top - baseY, 2 * (params.pivotRadius + params.armLength)) / 2;
   let az = 0.5, el = 0.34, dist = radius * 2.9;
   const minDist = radius * 1.1, maxDist = radius * 6;
   const clampDist = (d) => Math.max(minDist, Math.min(maxDist, d));
@@ -116,16 +116,16 @@ export function init3D(model, container) {
     spinner.rotation.y = spinPhase;
     hShaft.rotation.x = -spinPhase; // 90° drive
 
-    for (const a of arms) a.pivot.rotation.z = -a.side * thetaDisp;
+    for (const a of arms) a.pivot.rotation.z = a.side * thetaDisp;
     const lift = params.sleeveArm * Math.sin(thetaDisp);
-    const sleeveY = geo.sleeveRest + lift;
+    const sleeveY = geo.sleeveRest + lift; // ONLY the outer sleeve translates; the spindle/gear don't
     sleeve.position.y = sleeveY;
     spring.position.y = sleeveY + geo.sleeveH / 2;
     spring.scale.y = Math.max(1, geo.springTop - (sleeveY + geo.sleeveH / 2));
-    // bell-crank links: collar rim → inner point on the (rising) ball arm
+    // lower links: collar rim → a point on the hanging ball arm
     for (const a of arms) {
-      const d = params.armLength * 0.28, ph = a.side * thetaDisp;
-      const ix = a.side * params.pivotRadius + d * Math.sin(ph), iy = geo.yPivot + d * Math.cos(ph);
+      const d = params.armLength * 0.55, ph = a.side * thetaDisp;
+      const ix = a.side * params.pivotRadius + d * Math.sin(ph), iy = geo.yPivot - d * Math.cos(ph);
       orientLink(links[a.side === 1 ? 0 : 1], a.side * geo.sleeveW / 2, sleeveY, ix, iy);
     }
   }

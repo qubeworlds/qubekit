@@ -87,7 +87,7 @@ export function init2D(model, cv) {
     const th = thetaDisp;
     const pivR = params.pivotRadius, armL = params.armLength;
     const ballX = pivR + armL * Math.sin(th);
-    const ballY = geo.yPivot + armL * Math.cos(th); // balls ABOVE the pivots
+    const ballY = geo.yPivot - armL * Math.cos(th); // balls HANG below the pivots (rise with speed)
     const sy = geo.sleeveRest + lift(th); // collar rises with speed
 
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -109,8 +109,9 @@ export function init2D(model, cv) {
 
     for (const sgn of [1, -1]) {
       const px = sgn * pivR, py = geo.yPivot, bx = sgn * ballX, by = ballY;
-      // bell-crank link: collar corner → inner point on the (rising) ball arm
-      const ix = px + (bx - px) * 0.28, iy = py + (by - py) * 0.28;
+      // lower link: collar corner → a point on the hanging arm (lifts the collar
+      // as the balls swing out)
+      const ix = px + (bx - px) * 0.55, iy = py + (by - py) * 0.55;
       ctx.strokeStyle = '#e2b07a'; ctx.lineWidth = 2.4 * L.dpr; ctx.lineCap = 'round';
       line(sgn * geo.sleeveW / 2, sy + geo.sleeveH / 2, ix, iy);
       // ball arm (pivot → ball, rising outward)
