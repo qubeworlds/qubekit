@@ -24,10 +24,11 @@ export function init3D(model, container) {
 
   const steel = (c = 0xb8bcc4) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.9, roughness: 0.4 });
   const brass = () => new THREE.MeshStandardMaterial({ color: 0xb88a4e, metalness: 0.92, roughness: 0.38 });
+  const bronze = (c = 0xcd7f32) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.88, roughness: 0.3 }); // shaft (gold/bronze)
 
   // --- rotating assembly (spins about Y) ---
   const spinner = new THREE.Group(); scene.add(spinner);
-  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, geo.spindleTop - baseY, 20), steel(0x8f97a3));
+  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, geo.spindleTop - baseY, 20), bronze());
   spindle.position.y = (geo.spindleTop + baseY) / 2; spinner.add(spindle);
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(params.pivotRadius + 3, params.pivotRadius + 3, 6, 28), steel());
   hub.position.y = geo.yPivot; spinner.add(hub);
@@ -45,9 +46,8 @@ export function init3D(model, container) {
     arms.push({ pivot, side });
   }
 
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(geo.sleeveW / 2, geo.sleeveW / 2, geo.sleeveH, 28), steel(0xc9d2de));
-  spinner.add(sleeve);
-  const links = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 20, 2.4), brass()); spinner.add(m); return m; });
+  // No sliding sleeve in 3D — it can't sit over the bevel gear. The governing
+  // action is the balls flying out + the spring; the valve collar is shown in 2D.
 
   // spring: reusable helical part (toolbox), normalized to y∈[0,1], scaled to compress
   const spring = makeSpring({ radius: 7, wire: 1.1, coils: 8 });
@@ -65,7 +65,7 @@ export function init3D(model, container) {
   const hShaft = new THREE.Group(); hShaft.position.set(0, baseY, 0); scene.add(hShaft);
   const hGear = bevelGear({ teeth: BZ, module: BM, faceWidth: BFW, coneAngle: model.bevel.coneAngle2, color: 0xb88a4e });
   hGear.rotation.y = -Math.PI / 2; hGear.position.set(axialV, 0, 0); hShaft.add(hGear); // toe toward the corner
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 16), steel(0x8f97a3));
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 16), bronze());
   shaft.rotation.z = Math.PI / 2; shaft.position.set(20, 0, 0); hShaft.add(shaft);
   const pulley = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 6, 28), steel(0x6b7a93));
   pulley.rotation.z = Math.PI / 2; pulley.position.set(32, 0, 0); hShaft.add(pulley);
@@ -117,17 +117,9 @@ export function init3D(model, container) {
     hShaft.rotation.x = -spinPhase; // 90° drive
 
     for (const a of arms) a.pivot.rotation.z = a.side * thetaDisp;
-    const lift = params.sleeveArm * Math.sin(thetaDisp);
-    const sleeveY = geo.sleeveRest + lift; // ONLY the outer sleeve translates; the spindle/gear don't
-    sleeve.position.y = sleeveY;
-    spring.position.y = sleeveY + geo.sleeveH / 2;
-    spring.scale.y = Math.max(1, geo.springTop - (sleeveY + geo.sleeveH / 2));
-    // lower links: collar rim → a point on the hanging ball arm
-    for (const a of arms) {
-      const d = params.armLength * 0.55, ph = a.side * thetaDisp;
-      const ix = a.side * params.pivotRadius + d * Math.sin(ph), iy = geo.yPivot - d * Math.cos(ph);
-      orientLink(links[a.side === 1 ? 0 : 1], a.side * geo.sleeveW / 2, sleeveY, ix, iy);
-    }
+    const springBot = geo.sleeveRest + params.sleeveArm * Math.sin(thetaDisp); // spring compresses with speed
+    spring.position.y = springBot;
+    spring.scale.y = Math.max(1, geo.springTop - springBot);
   }
   function frame(t) {
     if (!running) return;
