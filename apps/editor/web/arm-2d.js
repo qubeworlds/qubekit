@@ -1,22 +1,22 @@
-// Robot arm — 2D side elevation in the arm's working plane (radial distance r on
-// X, height y on Y). The solver's IK gives the joint polyline; this draws the
-// links, joints, and the two-finger gripper, plus the table, the shapes at their
-// radial positions, and the sorter. Yaw (azimuth) is a readout — the elevation is
-// "unrolled" so the articulation reads cleanly. The slider scales cycle speed.
+// Robot arm — 2D. Left: a side elevation in the arm's working plane (radial r on
+// X, height y on Y) showing the solved linkage, the gripper, and the items. Right
+// (inset): a true top-view of the sorter — every hole is the item's footprint
+// grown by exactly the clearance, with the item's own outline drawn inside it, so
+// the "fits 1 mm wider" relationship is visible at a glance.
 
-const CYCLE_SECONDS = 18;
+const CYCLE_SECONDS = 20;
 
 export function init2D(model, cv) {
   const ctx = cv.getContext('2d');
-  const { params, shapes, sorter } = model;
+  const { params, items, sorter, clearance } = model;
   const reach = params.shoulderOffset + params.upperArm + params.forearm + params.tool;
 
   let L = layout();
   function layout() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const availW = (cv.parentElement && cv.parentElement.clientWidth) || 860;
-    const availH = Math.max(280, window.innerHeight * 0.6);
-    const mm = 16, spanX = reach + 120, spanY = params.baseHeight + params.upperArm + params.forearm + 60;
+    const availW = (cv.parentElement && cv.parentElement.clientWidth) || 880;
+    const availH = Math.max(300, window.innerHeight * 0.6);
+    const mm = 16, spanX = reach + 120, spanY = params.baseHeight + params.upperArm + params.forearm + 70;
     const aspect = (spanX + mm * 2) / (spanY + mm * 2);
     const cssW = Math.min(availW, availH * aspect), cssH = cssW / aspect;
     cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
@@ -29,28 +29,23 @@ export function init2D(model, cv) {
   const radial = (p) => Math.hypot(p[0], p[2]);
 
   function capsule(ax, ay, bx, by, w, fill) {
-    const x0 = X(ax), y0 = Y(ay), x1 = X(bx), y1 = Y(by);
     ctx.strokeStyle = fill; ctx.lineCap = 'round'; ctx.lineWidth = w * L.dpr;
-    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-    ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx), Y(by)); ctx.stroke(); ctx.lineCap = 'butt';
   }
   function dot(r, y, rad, fill, stroke) {
     ctx.beginPath(); ctx.arc(X(r), Y(y), rad * L.dpr, 0, 2 * Math.PI);
-    ctx.fillStyle = fill; ctx.fill();
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.4 * L.dpr; ctx.stroke(); }
+    ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.4 * L.dpr; ctx.stroke(); }
   }
-  function shapeIcon(r, baseY, s, color) {
+  // side-elevation icon of an item at radial r, sitting on baseY, by footprint kind
+  function itemIcon(r, baseY, it, color) {
+    const H = it.height, f = it.foot;
     ctx.fillStyle = color; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1 * L.dpr;
-    if (s.kind === 'cone') {
-      ctx.beginPath(); ctx.moveTo(X(r - s.r), Y(baseY)); ctx.lineTo(X(r), Y(baseY + s.h)); ctx.lineTo(X(r + s.r), Y(baseY)); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-    } else if (s.kind === 'cyl') {
-      const w = s.r * 2; ctx.fillRect(X(r - s.r), Y(baseY + s.h), w * L.scale, s.h * L.scale);
-      ctx.strokeRect(X(r - s.r), Y(baseY + s.h), w * L.scale, s.h * L.scale);
+    if (f.kind === 'tri') {
+      ctx.beginPath(); ctx.moveTo(X(r - f.w / 2), Y(baseY)); ctx.lineTo(X(r), Y(baseY + H)); ctx.lineTo(X(r + f.w / 2), Y(baseY)); ctx.closePath(); ctx.fill(); ctx.stroke();
     } else {
-      const half = (s.long ? s.long : s.size) / 2, h = s.size;
-      ctx.fillRect(X(r - half), Y(baseY + h), half * 2 * L.scale, h * L.scale);
-      ctx.strokeRect(X(r - half), Y(baseY + h), half * 2 * L.scale, h * L.scale);
+      const half = (f.kind === 'circle' ? f.r : f.w / 2);
+      ctx.fillRect(X(r - half), Y(baseY + H), half * 2 * L.scale, H * L.scale);
+      ctx.strokeRect(X(r - half), Y(baseY + H), half * 2 * L.scale, H * L.scale);
     }
   }
   function label(text, x, y, color, align = 'left') {
@@ -58,67 +53,92 @@ export function init2D(model, cv) {
     ctx.fillText(text, x, y); ctx.textAlign = 'left';
   }
 
+  // --- top-view sorter inset: holes (footprint + clearance) with item outlines ---
+  function footPath(P, ox, oz, fp) {
+    ctx.beginPath();
+    if (fp.circle) ctx.arc(P.x(ox), P.z(oz), fp.r * P.s, 0, 2 * Math.PI);
+    else fp.pts.forEach((pt, i) => { const A = P.x(ox + pt[0]), B = P.z(oz + pt[1]); i ? ctx.lineTo(A, B) : ctx.moveTo(A, B); });
+    ctx.closePath();
+  }
+  function drawInset(carry) {
+    const pad = 10 * L.dpr, w = Math.min(cv.width * 0.4, (sorter.w + 30) * L.scale * 1.1);
+    const s = (w - pad * 2) / (sorter.w + 24);
+    const h = (sorter.d + 24) * s + pad * 2;
+    const x0 = cv.width - w - 8 * L.dpr, y0 = 8 * L.dpr;
+    const cx = x0 + w / 2, cz = y0 + h / 2;
+    const P = { s, x: (x) => cx + x * s, z: (z) => cz + z * s };
+    // panel
+    ctx.fillStyle = 'rgba(20,25,34,.92)'; ctx.strokeStyle = '#2a3344'; ctx.lineWidth = 1 * L.dpr;
+    ctx.fillRect(x0, y0, w, h); ctx.strokeRect(x0, y0, w, h);
+    // plate outline
+    ctx.strokeStyle = '#5b6376'; ctx.lineWidth = 1.5 * L.dpr;
+    ctx.strokeRect(P.x(-sorter.w / 2), P.z(-sorter.d / 2), sorter.w * s, sorter.d * s);
+    label('sorter — top view  (holes +' + clearance + ' mm)', x0 + 6 * L.dpr, y0 + 13 * L.dpr, '#8b93a8');
+    items.forEach((it, i) => {
+      const [hx, hz] = it.holeLocal;
+      // hole = footprint + clearance (dashed teal)
+      ctx.setLineDash([4 * L.dpr, 3 * L.dpr]); ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 1.4 * L.dpr;
+      footPath(P, hx, hz, model.footPoly(it.foot, clearance)); ctx.stroke(); ctx.setLineDash([]);
+      // item footprint (solid colour) seated in the hole
+      ctx.fillStyle = i === carry ? it.color : it.color + 'cc'; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1 * L.dpr;
+      footPath(P, hx, hz, model.footPoly(it.foot, 0)); ctx.fill(); ctx.stroke();
+    });
+  }
+
   let phase = 0, last = 0, raf = 0, running = false;
 
   function draw() {
-    const { pose, grip, carry, target, label: leg } = model.poseAt(phase);
-    const pts = pose.points; // [base, shoulder, elbow, wrist, tip] in world
-
+    const { pose, grip, carry, label: leg } = model.poseAt(phase);
+    const pts = pose.points;
     ctx.clearRect(0, 0, cv.width, cv.height);
 
     // table + reach hint
     ctx.strokeStyle = '#39435a'; ctx.lineWidth = 2 * L.dpr;
     ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(reach + 90), Y(0)); ctx.stroke();
-    ctx.strokeStyle = 'rgba(94,121,168,.25)'; ctx.setLineDash([4 * L.dpr, 5 * L.dpr]);
-    ctx.beginPath(); ctx.arc(X(0), Y(params.baseHeight), reach * L.scale, -Math.PI / 2, 0); ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(94,121,168,.22)'; ctx.setLineDash([4 * L.dpr, 5 * L.dpr]);
+    ctx.beginPath(); ctx.arc(X(0), Y(params.baseHeight), reach * L.scale, -Math.PI / 2, 0); ctx.stroke(); ctx.setLineDash([]);
 
-    // sorter block (drawn at its radial distance)
+    // sorter (side elevation, walls)
     const sr = radial(sorter.pos);
-    ctx.fillStyle = '#5b6172'; ctx.strokeStyle = '#7a8194'; ctx.lineWidth = 1.2 * L.dpr;
+    ctx.fillStyle = '#3a4154'; ctx.strokeStyle = '#5b6376'; ctx.lineWidth = 1.2 * L.dpr;
     ctx.fillRect(X(sr - sorter.w / 2), Y(sorter.h), sorter.w * L.scale, sorter.h * L.scale);
     ctx.strokeRect(X(sr - sorter.w / 2), Y(sorter.h), sorter.w * L.scale, sorter.h * L.scale);
 
-    // resting shapes (skip the carried one)
-    shapes.forEach((s, i) => { if (i !== carry) shapeIcon(radial(s.pos), 0, s, s.color); });
+    // resting items (skip the carried one)
+    items.forEach((it, i) => { if (i !== carry) itemIcon(radial(it.pos), 0, it, it.color); });
 
-    // base column
-    capsule(0, 0, 0, params.baseHeight, 16, '#48506a');
-    dot(0, params.baseHeight, 6, '#2b3142', '#8b93a8');
+    // riser + base column
+    capsule(0, 0, 0, 26, 20, '#3a4154');
+    capsule(params.shoulderOffset * 0.5, 26, params.shoulderOffset, params.baseHeight, 16, '#cdd3df');
 
-    // arm links: upper arm, forearm, tool
+    // arm links (side elevation), printed look
     const r = pts.map(radial), h = pts.map((p) => p[1]);
-    capsule(r[1], h[1], r[2], h[2], 13, '#aeb6c6'); // upper arm
-    capsule(r[2], h[2], r[3], h[3], 11, '#c3cad8'); // forearm
-    capsule(r[3], h[3], r[4], h[4], 8, '#8b93a8'); // tool/wrist
-    dot(r[1], h[1], 7, '#5a6178', '#cbd5e1'); // shoulder
-    dot(r[2], h[2], 6, '#5a6178', '#cbd5e1'); // elbow
-    dot(r[3], h[3], 5, '#5a6178', '#cbd5e1'); // wrist
+    capsule(r[1], h[1], r[2], h[2], 14, '#dfe3ec'); // upper arm
+    capsule(r[2], h[2], r[3], h[3], 12, '#d3d9e4'); // forearm
+    capsule(r[3], h[3], r[4], h[4], 8, '#aeb6c6');  // tool
+    dot(params.shoulderOffset, params.baseHeight, 8, '#303644', '#2dd4bf');
+    dot(r[2], h[2], 7, '#303644', '#2dd4bf'); // elbow
+    dot(r[3], h[3], 5.5, '#303644', '#2dd4bf'); // wrist
 
-    // two-finger gripper at the tip (opens with grip 0, closes with 1)
-    const open = (1 - grip) * 22 + 6; // finger half-spread (mm)
-    const tipR = r[4], tipY = h[4], fingerLen = 26;
-    capsule(tipR - open, tipY + fingerLen, tipR - open, tipY, 4, '#e2e8f4');
-    capsule(tipR + open, tipY + fingerLen, tipR + open, tipY, 4, '#e2e8f4');
-    capsule(tipR - open, tipY + fingerLen, tipR + open, tipY + fingerLen, 4, '#e2e8f4');
+    // gripper (two fingers across, opening with 1−grip)
+    const open = (1 - grip) * 22 + 6, tipR = r[4], tipY = h[4], fl = 26;
+    capsule(tipR - open, tipY + fl, tipR - open, tipY, 4, '#e2e8f4');
+    capsule(tipR + open, tipY + fl, tipR + open, tipY, 4, '#e2e8f4');
+    capsule(tipR - open, tipY + fl, tipR + open, tipY + fl, 4, '#e2e8f4');
 
-    // carried shape rides between the fingers
-    if (carry >= 0) {
-      const s = shapes[carry];
-      const baseY = tipY - (s.kind === 'box' ? s.size : s.h);
-      shapeIcon(tipR, Math.max(0, baseY), s, s.color);
-    }
+    // carried item rides in the gripper
+    if (carry >= 0) itemIcon(tipR, Math.max(0, tipY - items[carry].height), items[carry], items[carry].color);
 
-    // readouts
+    // readouts + inset
     const deg = (x) => (x * 180 / Math.PI).toFixed(0);
-    label(`yaw ${deg(pose.yaw)}°  ·  shoulder ${deg(pose.joints.shoulder)}°  elbow ${deg(pose.joints.elbow)}°`, 12 * L.dpr, 18 * L.dpr, '#9aa6bd');
-    label(leg, cv.width - 12 * L.dpr, 18 * L.dpr, pose.reachable ? '#34d399' : '#f87171', 'right');
+    label(`yaw ${deg(pose.yaw)}°  shoulder ${deg(pose.joints.shoulder)}°  elbow ${deg(pose.joints.elbow)}°`, 12 * L.dpr, 18 * L.dpr, '#9aa6bd');
+    label(leg, 12 * L.dpr, 34 * L.dpr, pose.reachable ? '#34d399' : '#f87171');
+    drawInset(carry);
   }
 
   function frame(t) {
     if (!running) return;
-    if (!last) last = t;
-    const dt = (t - last) / 1000; last = t;
+    if (!last) last = t; const dt = (t - last) / 1000; last = t;
     phase += (dt * model.speed) / CYCLE_SECONDS;
     draw();
     raf = requestAnimationFrame(frame);

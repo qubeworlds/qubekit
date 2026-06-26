@@ -1,14 +1,18 @@
-// Robot arm — 3D. The solver's IK returns the joint polyline each frame; the
-// links are oriented to connect consecutive joints, the base yaws, and the
-// two-finger gripper opens/closes. Table, coloured shapes, and the sorter block
-// complete the scene. Three.js (vendored), mm scene units. Drag to orbit.
+// Robot arm — 3D. Built as a real kinematic TREE: a yaw turntable carries a riser
+// to the shoulder, then shoulder → upper arm → elbow → forearm → wrist → tool are
+// nested groups, each a revolute joint driven by the solver's relative joint
+// angle. So the links are rigidly connected through motorised hinge housings
+// (proper constraint joints), not floating cylinders — and nothing is missing.
+// Printed-PLA aesthetic. The sorter has real through-holes matching each item's
+// footprint + clearance. Three.js (vendored), mm scene units. Drag to orbit.
 
 import * as THREE from './vendor/three.module.js';
+import { footPoly, CLEARANCE } from './arm-model.js';
 
-const CYCLE_SECONDS = 18;
+const CYCLE_SECONDS = 20;
 
 export function init3D(model, container) {
-  const { params, shapes, sorter } = model;
+  const { params, items, sorter } = model;
   const reach = params.shoulderOffset + params.upperArm + params.forearm + params.tool;
 
   const scene = new THREE.Scene();
@@ -18,76 +22,114 @@ export function init3D(model, container) {
   container.appendChild(renderer.domElement);
 
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 9000);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(280, 420, 360); scene.add(key);
-  const fill = new THREE.DirectionalLight(0x8aa6ff, 0.35); fill.position.set(-260, 120, -200); scene.add(fill);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+  const keyL = new THREE.DirectionalLight(0xffffff, 1.05); keyL.position.set(300, 460, 380); scene.add(keyL);
+  const fillL = new THREE.DirectionalLight(0x9bb4ff, 0.32); fillL.position.set(-280, 160, -220); scene.add(fillL);
 
-  const mat = (c, m = 0.6, r = 0.5) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r });
+  // printed-robot palette: light PLA links, charcoal joint housings, teal accents
+  const pla = (c = 0xdfe3ec) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.08, roughness: 0.62 });
+  const housing = () => new THREE.MeshStandardMaterial({ color: 0x303644, metalness: 0.35, roughness: 0.55 });
+  const accent = () => new THREE.MeshStandardMaterial({ color: 0x2dd4bf, metalness: 0.3, roughness: 0.4 });
+  const matt = (c) => new THREE.MeshStandardMaterial({ color: new THREE.Color(c), metalness: 0.06, roughness: 0.66 });
 
-  // table
-  const table = new THREE.Mesh(new THREE.BoxGeometry(reach * 2.2, 16, reach * 1.7), mat(0x2c3344, 0.2, 0.85));
-  table.position.set(reach * 0.35, -8, reach * 0.45); scene.add(table);
+  // table — the arm sits at the MIDDLE of the near edge, so its half-disc
+  // workspace (radius = reach, facing +z) reaches both far corners.
+  const tb = model.tableBounds;
+  const table = new THREE.Mesh(new THREE.BoxGeometry(tb.xMax - tb.xMin + 40, 16, tb.zMax - tb.zMin + 40), new THREE.MeshStandardMaterial({ color: 0x2b3242, metalness: 0.15, roughness: 0.9 }));
+  table.position.set((tb.xMin + tb.xMax) / 2, -8, (tb.zMin + tb.zMax) / 2); scene.add(table);
 
-  // base + yaw group
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(34, 40, 36, 32), mat(0x3b4258, 0.7, 0.4));
-  base.position.y = 18; scene.add(base);
-  const yawG = new THREE.Group(); yawG.position.y = 36; scene.add(yawG);
-
-  // link meshes (re-oriented each frame to join joint points)
-  const upper = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1, 20), mat(0xaeb6c6, 0.55, 0.45));
-  const fore = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 1, 20), mat(0xc3cad8, 0.55, 0.45));
-  const wrist = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1, 16), mat(0x8b93a8, 0.6, 0.4));
-  scene.add(upper, fore, wrist);
-  const jointMesh = () => new THREE.Mesh(new THREE.SphereGeometry(13, 20, 14), mat(0x5a6178, 0.6, 0.4));
-  const shoulderJ = jointMesh(), elbowJ = jointMesh(); elbowJ.scale.setScalar(0.85);
-  scene.add(shoulderJ, elbowJ);
-
-  // gripper: a palm + two fingers (fingers slide in X to open/close)
-  const grip = new THREE.Group(); scene.add(grip);
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(40, 12, 24), mat(0xe2e8f4, 0.5, 0.5)); grip.add(palm);
-  const finger = () => new THREE.Mesh(new THREE.BoxGeometry(7, 30, 18), mat(0xd2d9e8, 0.5, 0.5));
-  const fL = finger(), fR = finger(); fL.position.y = -20; fR.position.y = -20; grip.add(fL, fR);
-
-  // shapes
-  const shapeMeshes = shapes.map((s) => {
-    let g;
-    if (s.kind === 'box') g = new THREE.BoxGeometry(s.long ? s.long : s.size, s.size, s.size);
-    else if (s.kind === 'cyl') g = new THREE.CylinderGeometry(s.r, s.r, s.h, 24);
-    else g = new THREE.ConeGeometry(s.r, s.h, 24);
-    const m = new THREE.Mesh(g, mat(new THREE.Color(s.color), 0.1, 0.6));
-    scene.add(m); return m;
-  });
-  const restShape = (s, mesh) => {
-    const half = (s.kind === 'box' ? s.size : s.h) / 2;
-    mesh.position.set(s.pos[0], half, s.pos[2]); mesh.rotation.set(0, 0, 0);
-  };
-
-  // sorter block with recessed hole markers on top
-  const sortG = new THREE.Group(); sortG.position.set(sorter.pos[0], sorter.h / 2, sorter.pos[2]); scene.add(sortG);
-  sortG.add(new THREE.Mesh(new THREE.BoxGeometry(sorter.w, sorter.h, sorter.d), mat(0x5b6172, 0.3, 0.7)));
-  shapes.forEach((s) => {
-    const hole = s.kind === 'cyl' || s.kind === 'cone'
-      ? new THREE.Mesh(new THREE.CircleGeometry(s.r ? s.r + 4 : 24, 24), mat(0x12151c, 0, 1))
-      : new THREE.Mesh(new THREE.PlaneGeometry((s.long ? s.long : s.size) + 8, s.size + 8), mat(0x12151c, 0, 1));
-    hole.rotation.x = -Math.PI / 2;
-    hole.position.set(s.hole[0] - sorter.pos[0], sorter.h / 2 + 0.5, s.hole[2] - sorter.pos[2]);
-    sortG.add(hole);
-  });
-
-  // orient a unit-height cylinder between two world points (Y is its axis)
-  const up = new THREE.Vector3(0, 1, 0), va = new THREE.Vector3(), vb = new THREE.Vector3(), dir = new THREE.Vector3();
-  function orient(mesh, a, b) {
-    va.set(a[0], a[1], a[2]); vb.set(b[0], b[1], b[2]);
-    dir.subVectors(vb, va); const len = dir.length() || 1;
-    mesh.position.copy(va).addScaledVector(dir, 0.5);
-    mesh.quaternion.setFromUnitVectors(up, dir.clone().normalize());
-    mesh.scale.y = len;
+  // --- vertical prism from a footprint (base at y=0). plan (x,z) preserved by
+  // authoring the shape with −z, then rotateX(−90°) maps shape→world cleanly. ---
+  function prismGeo(foot, height, grow = 0) {
+    const fp = footPoly(foot, grow);
+    if (fp.circle) { const g = new THREE.CylinderGeometry(fp.r, fp.r, height, 36); g.translate(0, height / 2, 0); return g; }
+    const shape = new THREE.Shape();
+    shape.moveTo(fp.pts[0][0], -fp.pts[0][1]);
+    for (let i = 1; i < fp.pts.length; i++) shape.lineTo(fp.pts[i][0], -fp.pts[i][1]);
+    shape.closePath();
+    const g = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+    g.rotateX(-Math.PI / 2);
+    return g;
   }
 
+  // ---- kinematic tree (a chain of nested revolute joints) ----
+  const basePedestal = new THREE.Mesh(new THREE.CylinderGeometry(46, 54, 30, 36), housing());
+  basePedestal.position.y = 15; scene.add(basePedestal);
+  scene.add(new THREE.Mesh(new THREE.TorusGeometry(46, 4, 12, 40), accent())).position.set(0, 30, 0);
+
+  const turntable = new THREE.Group(); scene.add(turntable); // yaws about world Y
+  const tt = new THREE.Mesh(new THREE.CylinderGeometry(40, 44, 22, 36), pla(0xc9ced9)); tt.position.y = 30 + 11; turntable.add(tt);
+
+  // riser: turntable → shoulder (the segment that used to be missing). Built in
+  // the turntable's local plane: local +X = radial, local +Y = up.
+  const riser = new THREE.Mesh(new THREE.BoxGeometry(34, params.baseHeight, 46), pla(0xd8dde6));
+  riser.position.set(params.shoulderOffset * 0.5, 30 + params.baseHeight / 2, 0); turntable.add(riser);
+
+  // helper: a motor-joint housing (cylinder along the local Z hinge axis) + accent
+  function jointHousing(r, w) {
+    const grp = new THREE.Group();
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 28), housing()); h.rotation.x = Math.PI / 2; grp.add(h);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 0.62, r * 0.16, 10, 24), accent()); ring.position.z = w / 2 + 0.5; grp.add(ring);
+    return grp;
+  }
+  // helper: a printed link box of length L along +X, given cross-section h×w
+  function linkBox(L, h, w, inset = 8) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(L - inset, h, w), pla());
+    m.position.x = L / 2; return m;
+  }
+
+  const shoulder = new THREE.Group(); shoulder.position.set(params.shoulderOffset, 30 + params.baseHeight, 0); turntable.add(shoulder);
+  shoulder.add(jointHousing(26, 50));
+  shoulder.add(linkBox(params.upperArm, 30, 34));
+
+  const elbow = new THREE.Group(); elbow.position.set(params.upperArm, 0, 0); shoulder.add(elbow);
+  elbow.add(jointHousing(22, 40));
+  elbow.add(linkBox(params.forearm, 26, 30));
+
+  const wrist = new THREE.Group(); wrist.position.set(params.forearm, 0, 0); elbow.add(wrist);
+  wrist.add(jointHousing(17, 32));
+  wrist.add(linkBox(params.tool, 20, 24, 4));
+
+  // gripper at the tool end (local +X is the tool axis; it points down when q3=−90°)
+  const gripper = new THREE.Group(); gripper.position.set(params.tool, 0, 0); wrist.add(gripper);
+  gripper.add(new THREE.Mesh(new THREE.BoxGeometry(18, 26, 40), pla(0xcfd5e0))); // palm across Z
+  const finger = () => { const f = new THREE.Mesh(new THREE.BoxGeometry(34, 8, 9), pla(0xb9c0cd)); return f; };
+  const fA = finger(), fB = finger(); // extend along +X (tool dir), open across Z
+  fA.position.set(20, 0, 0); fB.position.set(20, 0, 0); gripper.add(fA, fB);
+
+  // ---- items (extruded footprints), base at y=0 ----
+  const itemMeshes = items.map((it) => { const m = new THREE.Mesh(prismGeo(it.foot, it.height), matt(it.color)); scene.add(m); return m; });
+  const restItem = (it, m) => { m.position.set(it.pos[0], 0, it.pos[2]); m.rotation.set(0, 0, 0); };
+
+  // ---- sorter: walls + a holed top plate (real through-holes) ----
+  const sortG = new THREE.Group(); sortG.position.set(sorter.pos[0], 0, sorter.pos[2]); scene.add(sortG);
+  const W = sorter.w / 2, D = sorter.d / 2, wallT = 8;
+  const wallMat = pla(0x9aa1b0);
+  const wallX = (sx) => { const m = new THREE.Mesh(new THREE.BoxGeometry(wallT, sorter.h, sorter.d), wallMat); m.position.set(sx, sorter.h / 2, 0); sortG.add(m); };
+  const wallZ = (sz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sorter.w, sorter.h, wallT), wallMat); m.position.set(0, sorter.h / 2, sz); sortG.add(m); };
+  wallX(-W); wallX(W); wallZ(-D); wallZ(D);
+  // holed top plate
+  const plateShape = new THREE.Shape();
+  plateShape.moveTo(-W, -D); plateShape.lineTo(W, -D); plateShape.lineTo(W, D); plateShape.lineTo(-W, D); plateShape.closePath();
+  for (const it of items) {
+    const fp = footPoly(it.foot, CLEARANCE);
+    const [hx, hz] = it.holeLocal; const path = new THREE.Path();
+    if (fp.circle) path.absarc(hx, -hz, fp.r, 0, Math.PI * 2, true);
+    else { path.moveTo(hx + fp.pts[0][0], -(hz + fp.pts[0][1])); for (let i = 1; i < fp.pts.length; i++) path.lineTo(hx + fp.pts[i][0], -(hz + fp.pts[i][1])); path.closePath(); }
+    plateShape.holes.push(path);
+  }
+  const plateGeo = new THREE.ExtrudeGeometry(plateShape, { depth: sorter.plate, bevelEnabled: false });
+  plateGeo.rotateX(-Math.PI / 2);
+  const plate = new THREE.Mesh(plateGeo, pla(0xc2c8d4)); plate.position.y = sorter.h - sorter.plate; sortG.add(plate);
+
+  // ---- orient the turntable plane: local +X → world radial (sin yaw,0,cos yaw) ----
+  const ex = new THREE.Vector3(), ey = new THREE.Vector3(0, 1, 0), ez = new THREE.Vector3(), basis = new THREE.Matrix4();
+  function setYaw(yaw) { ex.set(Math.sin(yaw), 0, Math.cos(yaw)); ez.crossVectors(ex, ey); basis.makeBasis(ex, ey, ez); turntable.quaternion.setFromRotationMatrix(basis); }
+
   // --- camera framing + orbit/zoom ---
-  const center = new THREE.Vector3(reach * 0.25, params.baseHeight * 0.7, reach * 0.35);
-  const radius = reach * 0.9;
-  let az = 0.7, el = 0.42, dist = radius * 2.7;
+  const center = new THREE.Vector3(reach * 0.05, params.baseHeight * 0.75, reach * 0.35);
+  const radius = reach * 0.92;
+  let az = 0.72, el = 0.4, dist = radius * 2.7;
   const minDist = radius * 1.1, maxDist = radius * 6;
   const clampDist = (d) => Math.max(minDist, Math.min(maxDist, d));
   function placeCamera() {
@@ -97,18 +139,17 @@ export function init3D(model, container) {
   }
   const dom = renderer.domElement; dom.style.touchAction = 'none';
   const pointers = new Map(); let pinchStart = 0, distAtPinch = 0;
-  const span = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
-  dom.addEventListener('pointerdown', (e) => { dom.setPointerCapture?.(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.size === 2) { pinchStart = span(); distAtPinch = dist; } });
+  const spanP = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  dom.addEventListener('pointerdown', (e) => { dom.setPointerCapture?.(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.size === 2) { pinchStart = spanP(); distAtPinch = dist; } });
   const drop = (e) => pointers.delete(e.pointerId);
   dom.addEventListener('pointerup', drop); dom.addEventListener('pointercancel', drop);
   dom.addEventListener('pointermove', (e) => {
     const p = pointers.get(e.pointerId); if (!p) return;
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-    if (pointers.size >= 2) { if (pinchStart > 0) { dist = clampDist(distAtPinch * (pinchStart / span())); placeCamera(); } }
+    if (pointers.size >= 2) { if (pinchStart > 0) { dist = clampDist(distAtPinch * (pinchStart / spanP())); placeCamera(); } }
     else { az -= dx * 0.01; el = Math.max(-0.2, Math.min(1.3, el + dy * 0.01)); placeCamera(); }
   });
-  const onWheel = (e) => { e.preventDefault(); dist = clampDist(dist * Math.exp(e.deltaY * 0.001)); placeCamera(); };
-  dom.addEventListener('wheel', onWheel, { passive: false });
+  dom.addEventListener('wheel', (e) => { e.preventDefault(); dist = clampDist(dist * Math.exp(e.deltaY * 0.001)); placeCamera(); }, { passive: false });
   function resize() { const w = container.clientWidth || 900, h = container.clientHeight || 540; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); placeCamera(); }
   const onResize = () => resize(); window.addEventListener('resize', onResize);
 
@@ -116,23 +157,18 @@ export function init3D(model, container) {
   function update(dt) {
     phase += (dt * model.speed) / CYCLE_SECONDS;
     const { pose, grip: g, carry } = model.poseAt(phase);
-    const pts = pose.points; // [base, shoulder, elbow, wrist, tip]
+    const j = pose.joints;
+    setYaw(j.base);
+    shoulder.rotation.z = pose.shoulder;
+    elbow.rotation.z = j.elbow;
+    wrist.rotation.z = j.wrist;
+    const open = (1 - g) * 16 + 6; // finger spread across Z
+    fA.position.z = -open; fB.position.z = open;
 
-    yawG.rotation.y = pose.yaw;
-    orient(upper, pts[1], pts[2]); orient(fore, pts[2], pts[3]); orient(wrist, pts[3], pts[4]);
-    shoulderJ.position.set(...pts[1]); elbowJ.position.set(...pts[2]);
-
-    // gripper at the tip, oriented down the tool, fingers open with (1−grip)
-    grip.position.set(...pts[4]); grip.rotation.set(0, pose.yaw, 0);
-    const open = (1 - g) * 22 + 7;
-    fL.position.x = -open; fR.position.x = open;
-
-    shapes.forEach((s, i) => {
-      if (i === carry) {
-        const half = (s.kind === 'box' ? s.size : s.h) / 2;
-        shapeMeshes[i].position.set(pts[4][0], pts[4][1] - 20 - half, pts[4][2]);
-        shapeMeshes[i].rotation.y = pose.yaw;
-      } else restShape(s, shapeMeshes[i]);
+    const tip = pose.points[4];
+    items.forEach((it, i) => {
+      if (i === carry) { itemMeshes[i].position.set(tip[0], Math.max(0, tip[1] - it.height), tip[2]); itemMeshes[i].rotation.set(0, 0, 0); }
+      else restItem(it, itemMeshes[i]);
     });
   }
   function frame(t) {
