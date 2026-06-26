@@ -26,7 +26,15 @@
         font-size: clamp(11px, 2.4vw, 13px); cursor: pointer; user-select: none; }
       label.lock input { width: 15px; height: 15px; accent-color: #f87171; }
       label.speed input { accent-color: #3b82f6; width: 130px; }
-      #speedval { color: #93c5fd; min-width: 64px; }
+      #sliderval { color: #93c5fd; min-width: 64px; }
+      .rpm4 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+      .rpm4 .r { display: inline-flex; align-items: center; gap: 7px; color: #cbd5e1;
+        font-size: clamp(10px, 2.2vw, 12px); }
+      .rpm4 .r span.lab { min-width: 34px; color: #9aa6bd; }
+      .rpm4 .r input { width: 96px; }
+      .rpm4 .r span.val { min-width: 52px; color: #93c5fd; text-align: right; }
+      .rpm4 .r.ccw input { accent-color: #6f9eff; } /* blue = CCW */
+      .rpm4 .r.cw input { accent-color: #ef4444; }  /* red = CW */
       .view { width: min(92vw, 900px); }
       canvas#c2d { width: 100%; height: auto; display: block; }
       #view3d { height: min(58vw, 540px); border-radius: 8px; overflow: hidden; }
@@ -40,25 +48,29 @@
     <h1>QubeKit — solver-driven mechanisms</h1>
     <p class="sub">
       Every mechanism here is generated and solved by <code>@qubekit/solver</code>:
-      involute gears, a slider-crank steam engine, and a centrifugal flyball
-      governor. Pick one from the menu.
+      involute gears, a slider-crank steam engine, a centrifugal flyball
+      governor, an articulated robot arm (inverse kinematics), and a quadcopter
+      (counter-rotating control mixer). Pick one from the menu.
     </p>
     <div class="controls">
       <select id="mech" aria-label="mechanism">
         <option value="train">Gear train + steam engine</option>
         <option value="governor">Flyball governor</option>
+        <option value="arm">Robot arm</option>
+        <option value="drone">Drone</option>
       </select>
       <div class="tabs" role="group" aria-label="view">
         <button id="tab-2d" aria-pressed="true">2D</button>
         <button id="tab-3d" aria-pressed="false">3D</button>
       </div>
       <label class="lock" id="ctl-lock"><input type="checkbox" id="lock" /> Lock (bridge gears 3 &amp; 4)</label>
-      <label class="speed" id="ctl-speed" hidden>Speed <input type="range" id="speed" min="0" max="40" step="1" /> <span id="speedval"></span></label>
+      <label class="speed" id="ctl-slider" hidden><span id="slabel">Speed</span> <input type="range" id="slider" min="0" max="40" step="1" /> <span id="sliderval"></span></label>
+      <div class="rpm4" id="ctl-rpm4" hidden></div>
     </div>
     <div id="view2d" class="view"><canvas id="c2d" width="900" height="460"></canvas></div>
     <div id="view3d" class="view" hidden></div>
     <div id="facts">…</div>
-    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom · governor: drag the speed slider</div>
+    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom · governor / arm / drone: drag the slider</div>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

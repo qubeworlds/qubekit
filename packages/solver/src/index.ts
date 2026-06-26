@@ -7,3 +7,5 @@ export * from './constraints.js';
 export * from './solve.js';
 export * from './gear.js';
 export * from './mechanism.js';
+export * from './arm.js';
+export * from './quad.js';

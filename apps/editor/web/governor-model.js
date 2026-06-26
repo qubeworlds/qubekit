@@ -27,6 +27,10 @@ export function buildGovernor() {
     params, geo, bevel, minOmega, maxOmega,
     get omega() { return omega; },
     set omega(v) { omega = Math.max(minOmega, Math.min(maxOmega, v)); },
+    // generic slider contract (app.js): a single labelled input → solver state
+    sliderConfig: { label: 'Speed', min: minOmega, max: maxOmega, step: 1, unit: 'rad/s', param: 'omega' },
+    get sliderValue() { return omega; },
+    setSlider(v) { omega = Math.max(minOmega, Math.min(maxOmega, v)); },
     state() { return governor(params, omega); },
     factsHTML() {
       const s = governor(params, omega);
