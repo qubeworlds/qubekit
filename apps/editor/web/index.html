@@ -1,79 +1,36 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<title>QubeKit — preview</title>
-<style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: #07090d; color: #e6edf3;
-    font: 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow: hidden; }
-  #app { position: fixed; inset: 0; }
-  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; display: block; touch-action: none; }
-
-  #bar { position: absolute; top: 0; left: 0; right: 0; height: 52px; z-index: 20;
-    display: flex; align-items: center; gap: 12px; padding: 0 14px;
-    background: linear-gradient(#0b0f16ee, #0b0f1699); border-bottom: 1px solid #1c2330; backdrop-filter: blur(8px); }
-  #bar .brand { font-weight: 700; letter-spacing: .3px; }
-  #bar .brand b { color: #7fb2ff; }
-  #bar .sp { flex: 1; }
-  .seg { display: inline-flex; border: 1px solid #2a4a63; border-radius: 9px; overflow: hidden; }
-  .seg button { background: #0d1117; color: #cfe8ff; border: 0; padding: 8px 16px; font: inherit; cursor: pointer; min-width: 92px; }
-  .seg button[aria-pressed="true"] { background: #1d3a52; color: #fff; }
-  #reset { background: #2a1818; color: #ffb4b4; border: 1px solid #6a2e2e; border-radius: 9px; padding: 8px 14px; font: inherit; cursor: pointer; }
-  #reset:active { background: #3a2020; }
-  #status { color: #7f8ea3; font-size: 12px; min-width: 120px; text-align: right; }
-
-  #palette { position: absolute; top: 64px; left: 12px; z-index: 20; width: 132px;
-    background: #0b0f16d9; border: 1px solid #1c2330; border-radius: 12px; padding: 10px; backdrop-filter: blur(8px); }
-  #palette h3 { margin: 2px 4px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6b7484; }
-  #palette .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #palette button { background: #121a26; color: #d7e3f1; border: 1px solid #243246; border-radius: 10px;
-    padding: 12px 6px; font: inherit; font-size: 12px; cursor: pointer; min-height: 56px; touch-action: manipulation; }
-  #palette button:active { background: #1d3a52; transform: scale(.97); }
-  #palette .hint { margin: 8px 4px 2px; font-size: 11px; color: #6b7484; }
-
-  #logwrap { position: absolute; right: 12px; bottom: 12px; z-index: 20; width: min(46vw, 420px); }
-  #logtoggle { background: #0d1117; color: #9fb0c2; border: 1px solid #243246; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
-  #log { display: none; margin-top: 8px; max-height: 38vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
-    background: #0a0d12ee; border: 1px solid #1c2330; border-radius: 10px; padding: 8px 10px; font: 11px/1.45 ui-monospace, Menlo, monospace; }
-  #log.open { display: block; }
-  .err { color: #ff9b9b; } .ok { color: #8be38b; } .dim { color: #6b7484; }
-</style>
-</head>
-<body>
-<div id="app">
-  <canvas id="canvas"></canvas>
-
-  <div id="bar">
-    <div class="brand">Qube<b>Kit</b></div>
-    <div class="seg" role="group" aria-label="mode">
-      <button id="mBuild" aria-pressed="true">Build</button>
-      <button id="mSim" aria-pressed="false">Simulate</button>
-    </div>
-    <button id="reset">Reset</button>
-    <div class="sp"></div>
-    <div id="status">booting…</div>
-  </div>
-
-  <div id="palette">
-    <h3>Add gear</h3>
-    <div class="grid">
-      <button data-part="gear8">Pinion 8</button>
-      <button data-part="gear12">Gear 12</button>
-      <button data-part="gear24">Gear 24</button>
-      <button data-part="gear36">Gear 36</button>
-    </div>
-    <div class="hint">each meshes the last at a = m(z₁+z₂)/2 · then hit Simulate</div>
-  </div>
-
-  <div id="logwrap">
-    <button id="logtoggle">▾ engine log</button>
-    <pre id="log"></pre>
-  </div>
-</div>
-
-<script type="module" src="./app.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>QubeKit — two correct gears</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; min-height: 100%; background: #0f1115; color: #e5e7eb;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px; padding: 24px; box-sizing: border-box; min-height: 100vh; }
+      h1 { font-size: clamp(18px, 4vw, 26px); font-weight: 600; margin: 0; letter-spacing: 0.02em; }
+      p.sub { margin: 0; max-width: 640px; text-align: center; color: #9ca3af;
+        font-size: clamp(12px, 2.6vw, 14px); line-height: 1.5; }
+      p.sub code { color: #cbd5e1; }
+      canvas { width: min(92vw, 900px); height: auto; touch-action: none; }
+      #facts { font-size: clamp(11px, 2.4vw, 13px); color: #cbd5e1; text-align: center; }
+      #facts b { color: #34d399; }
+      .hint { color: #6b7280; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <h1>Two gears that actually mesh</h1>
+    <p class="sub">
+      Generated and validated by <code>@qubekit/solver</code> — involute flanks,
+      equal module, pitch circles tangent at the standard centre distance. Unlike a
+      diffusion render, these obey the meshing law, so they turn together without
+      skipping.
+    </p>
+    <canvas id="c" width="900" height="520"></canvas>
+    <div id="facts">…</div>
+    <div class="hint">tap / click to pause</div>
+    <script type="module" src="./gears.js"></script>
+  </body>
 </html>
