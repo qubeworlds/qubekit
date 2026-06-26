@@ -1,0 +1,14 @@
+{
+  "id": "qubekit/primitives/spring",
+  "kind": "spring",
+  "name": "Helical Spring",
+  "category": "fastener",
+  "params": { "radius": 7, "wire": 1.1, "coils": 8 },
+  "units": "mm",
+  "material": "steel",
+  "tags": ["spring", "helical", "compression"],
+  "license": "MIT",
+  "authoredBy": "qubekit",
+  "version": 1,
+  "thumbnail": "thumb.webp"
+}

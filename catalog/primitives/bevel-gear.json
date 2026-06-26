@@ -1,0 +1,14 @@
+{
+  "id": "qubekit/primitives/bevel-gear",
+  "kind": "bevelGear",
+  "name": "Bevel Gear (14T)",
+  "category": "gear",
+  "params": { "teeth": 14, "module": 1.1428571, "faceWidth": 5.6, "coneAngle": 0.7853982 },
+  "units": "mm",
+  "material": "steel",
+  "tags": ["gear", "bevel", "right-angle"],
+  "license": "MIT",
+  "authoredBy": "qubekit",
+  "version": 1,
+  "thumbnail": "thumb.webp"
+}
