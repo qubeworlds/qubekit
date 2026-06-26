@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>QubeKit — two correct gears</title>
+    <title>QubeKit — a four-gear train</title>
     <style>
       :root { color-scheme: dark; }
       html, body { margin: 0; min-height: 100%; background: #0f1115; color: #e5e7eb;
@@ -21,12 +21,12 @@
     </style>
   </head>
   <body>
-    <h1>Two gears that actually mesh</h1>
+    <h1>A four-gear train that actually turns</h1>
     <p class="sub">
-      Generated and validated by <code>@qubekit/solver</code> — involute flanks,
-      equal module, pitch circles tangent at the standard centre distance. Unlike a
-      diffusion render, these obey the meshing law, so they turn together without
-      skipping.
+      Generated and solved by <code>@qubekit/solver</code> — involute flanks, equal
+      module, pitch circles tangent. <code>solveTrain()</code> computes each gear's
+      speed and direction and checks the chain isn't locked; every pair is phased so
+      a tooth seats into a gap. So the whole train rolls without slip.
     </p>
     <canvas id="c" width="900" height="520"></canvas>
     <div id="facts">…</div>
