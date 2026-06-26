@@ -15,9 +15,9 @@ import { init2D as arm2D } from './arm-2d.js';
 import { init3D as arm3D } from './arm-3d.js';
 import { buildDrone } from './drone-model.js';
 import { init2D as drone2D } from './drone-2d.js';
-// 3D drone runs on the Quine engine (Jolt physics — rotors collide with the
-// table). The Three.js view (./drone-3d.js) is kept as a fallback.
-import { init3D as drone3D } from './drone-3d-quine.js';
+// 3D drone: Three.js view (stable). The Quine/Jolt-physics view lives in
+// ./drone-3d-quine.js — under investigation, not wired in yet.
+import { init3D as drone3D } from './drone-3d.js';
 
 const MECH = {
   train: {
