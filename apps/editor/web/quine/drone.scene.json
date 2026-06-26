@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "name": "qubekit-drone",
+  "gravity": [0, -9.81, 0],
+  "fixedHz": 120,
+  "script": { "source": "./drone.skill.js" },
+  "entities": [
+    {
+      "name": "table",
+      "transform": { "position": [0, -0.06, 0], "scale": [0.72, 0.06, 0.52] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 12, "segments": 36 },
+      "material": { "color": [0.17, 0.2, 0.26, 1], "roughness": 0.85 },
+      "body": {
+        "motion": "static",
+        "collider": { "kind": "box", "halfExtents": [0.72, 0.06, 0.52] },
+        "restitution": 0.1,
+        "friction": 0.7,
+        "tag": "table"
+      }
+    },
+    {
+      "name": "drone",
+      "transform": { "position": [0, 0.55, 0], "scale": [0.14, 0.05, 0.12] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 12, "segments": 28 },
+      "material": { "color": [0.82, 0.85, 0.9, 1], "metallic": 0.3, "roughness": 0.5 },
+      "body": {
+        "motion": "dynamic",
+        "collider": { "kind": "box", "halfExtents": [0.14, 0.05, 0.12] },
+        "mass": 0.3,
+        "restitution": 0.15,
+        "friction": 0.6,
+        "tag": "drone"
+      }
+    },
+    {
+      "name": "rotor0",
+      "transform": { "position": [0.08, 0.6, 0.08], "scale": [0.06, 0.008, 0.06] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 8, "segments": 28 },
+      "material": { "color": [1, 0.48, 0.48, 1], "roughness": 0.4, "emissive": [0.25, 0.04, 0.04] }
+    },
+    {
+      "name": "rotor1",
+      "transform": { "position": [-0.08, 0.6, 0.08], "scale": [0.06, 0.008, 0.06] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 8, "segments": 28 },
+      "material": { "color": [0.44, 0.62, 1, 1], "roughness": 0.4, "emissive": [0.04, 0.1, 0.28] }
+    },
+    {
+      "name": "rotor2",
+      "transform": { "position": [-0.08, 0.6, -0.08], "scale": [0.06, 0.008, 0.06] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 8, "segments": 28 },
+      "material": { "color": [1, 0.48, 0.48, 1], "roughness": 0.4, "emissive": [0.25, 0.04, 0.04] }
+    },
+    {
+      "name": "rotor3",
+      "transform": { "position": [0.08, 0.6, -0.08], "scale": [0.06, 0.008, 0.06] },
+      "geometry": { "kind": "sphere", "radius": 1, "rings": 8, "segments": 28 },
+      "material": { "color": [0.44, 0.62, 1, 1], "roughness": 0.4, "emissive": [0.04, 0.1, 0.28] }
+    },
+    {
+      "name": "camera",
+      "camera": {
+        "fovY": 0.85,
+        "near": 0.05,
+        "far": 100,
+        "controller": { "kind": "orbit", "target": [0, 0.35, 0], "distance": 1.9, "yaw": 0.6, "pitch": 0.35 }
+      }
+    }
+  ]
+}
