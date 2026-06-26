@@ -58,7 +58,7 @@ export function buildArm() {
     { name: 'cube', color: '#e0453a', height: 50, foot: { kind: 'rect', w: 50, d: 50 }, pos: [-170, 0, 300], holeLocal: [-58, -42] },
     { name: 'cylinder', color: '#e8842b', height: 58, foot: { kind: 'circle', r: 27 }, pos: [-60, 0, 350], holeLocal: [58, -42] },
     { name: 'wedge', color: '#e8c33a', height: 48, foot: { kind: 'tri', w: 62, d: 56 }, pos: [55, 0, 300], holeLocal: [-58, 46] },
-    { name: 'block', color: '#3aa64a', height: 42, foot: { kind: 'rect', w: 98, d: 42 }, pos: [150, 0, 245], holeLocal: [54, 46] },
+    { name: 'block', color: '#3aa64a', height: 42, foot: { kind: 'rect', w: 98, d: 42 }, pos: [-395, 0, 165], holeLocal: [54, 46] },
   ];
   // resolve each item's drop point (world) on the sorter top
   for (const it of items) it.hole = [sorter.pos[0] + it.holeLocal[0], sorter.h, sorter.pos[2] + it.holeLocal[1]];
