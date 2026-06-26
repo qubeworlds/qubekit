@@ -14,8 +14,10 @@ export function buildGovernor() {
   const minOmega = 4, maxOmega = 22;
   let omega = 11;
 
-  // front-elevation layout constants (mm, y up)
-  const geo = { yHub: 112, baseTop: 23, ballR: 11, sleeveRest: 42, sleeveW: 28, sleeveH: 10, springTop: 104 };
+  // front-elevation layout constants (mm, y up). Balls sit ABOVE the pivots
+  // (bell-crank governor): arms rise from the pivot spider to the balls; a link
+  // drops to the collar below; the spring is the upper-central column.
+  const geo = { yPivot: 50, spindleTop: 110, baseTop: 23, ballR: 11, sleeveRest: 30, sleeveW: 28, sleeveH: 10, springTop: 100 };
 
   // bevel-gear right-angle drive: vertical spindle axis ↔ horizontal belt shaft.
   const bevel = bevelPair(16, 16); // equal teeth → 45°/45° cones

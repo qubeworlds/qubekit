@@ -8,6 +8,7 @@ import { init2D as train2D } from './view-2d.js';
 import { init3D as train3D } from './view-3d.js';
 import { buildGovernor } from './governor-model.js';
 import { init2D as governor2D } from './governor-2d.js';
+import { init3D as governor3D } from './governor-3d.js';
 
 const MECH = {
   train: {
@@ -15,8 +16,8 @@ const MECH = {
     build: (o) => buildTrain(o), v2: train2D, v3: train3D,
   },
   governor: {
-    label: 'Flyball governor', has3D: false, control: 'speed',
-    build: () => buildGovernor(), v2: governor2D, v3: null,
+    label: 'Flyball governor', has3D: true, control: 'speed',
+    build: () => buildGovernor(), v2: governor2D, v3: governor3D,
   },
 };
 
