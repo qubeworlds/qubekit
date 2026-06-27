@@ -223,10 +223,13 @@ export function init3D(model, container) {
       }
       if (typeof model.wrench === 'function') {
         const w = model.wrench();
-        // attitude targets: right-heavy banks, front-heavy pitches (same mapping
-        // as the Three.js view); the controller leans the real body to these.
+        // attitude targets: more thrust on a side lifts THAT side. The controller
+        // drives the body's ZYX Euler, where +roll(e.z) lifts +X and +pitch maps to
+        // nose-up, so roll takes the solver's sign directly (w.roll>0 = right-heavy
+        // = right up). NB: opposite sign to the Three.js view, whose Z-roll
+        // handedness is flipped — matching it here banked the wrong way.
         const pitchT = clamp(w.pitch * 18, -0.45, 0.45);
-        const rollT = clamp(-w.roll * 18, -0.45, 0.45);
+        const rollT = clamp(w.roll * 18, -0.45, 0.45);
         const yawRateT = clamp(w.yaw * 60, -1.5, 1.5); // rad/s
         // altitude setpoint: lift vs weight raises/lowers it; below REST_Y commits
         // to a landing (the static table stops the descent for real).
