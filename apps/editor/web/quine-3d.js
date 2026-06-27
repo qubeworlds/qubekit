@@ -97,13 +97,14 @@ onPreStep(function (dt) {
   var pitchD = KP*(tPitch - e.x);
   var yawD   = KYAW*(KYR*wy - w.y);
   b.body.addTorque({x:fly*pitchD - KD*w.x, y:fly*yawD - KD*w.y, z:fly*rollD - KD*w.z});
-  // prop hubs: ride the body pose, spin at the actual (differential) thrust.
+  // prop hubs: ride the body pose, each spinning at ITS OWN rotor's thrust
+  // (axes 0..3), so turning one rotor on spins only that prop.
   for (var i = 0; i < 4; i++) {
-    var th = thrust*0.25 + fly*(rollD*SX[i] + pitchD*SZ[i] + yawD*SP[i])*0.4; if (th < 0) th = 0;
+    var spin = input(i); if (spin < 0) spin = 0;
     var o = mv(Rb, OFF[i]);
     var h = world.get(HUBS[i]);
     if (!h) continue;
-    ANG[i] = (ANG[i] + DIR[i] * 9.0 * Math.sqrt(th) * dt) % 6.2831853;
+    ANG[i] = (ANG[i] + DIR[i] * 9.0 * Math.sqrt(spin) * dt) % 6.2831853;
     h.transform.position = { x: p.x + o[0], y: p.y + o[1], z: p.z + o[2] };
     h.transform.rotation = zyx(mul(Rb, ry(ANG[i]))); // disc stays parallel to body
   }
@@ -251,6 +252,8 @@ export function init3D(model, container) {
   const flight = () => {
     if (e.ready && model && typeof model.wrench === 'function') {
       const w = model.wrench();
+      const t = w.thrusts || [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++) e.enqueue({ type: 'input', axis: i, value: t[i] }); // per-rotor thrust (visual spin)
       e.enqueue({ type: 'input', axis: 4, value: w.thrust }); // collective (N)
       e.enqueue({ type: 'input', axis: 5, value: w.roll });   // roll wrench (N·m)
       e.enqueue({ type: 'input', axis: 6, value: w.pitch });  // pitch wrench
