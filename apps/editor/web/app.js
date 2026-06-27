@@ -9,7 +9,7 @@ import { init2D as train2D } from './view-2d.js';
 import { init3D as train3D } from './view-3d.js';
 import { buildGovernor } from './governor-model.js';
 import { init2D as governor2D } from './governor-2d.js';
-import { init3D as governor3D } from './governor-3d.js';
+import { init3D as governorQuine3D } from './governor-quine-3d.js';
 import { buildArm } from './arm-model.js';
 import { init2D as arm2D } from './arm-2d.js';
 import { init3D as arm3D } from './arm-3d.js';
@@ -25,9 +25,11 @@ const MECH = {
     label: 'Gear train + steam engine', has3D: true, control: 'lock',
     build: (o) => buildTrain(o), v2: train2D, v3: train3D,
   },
+  // The governor's 3D tab is the real Quine wasm engine (a kinematic placer
+  // poses the linkage from the solver's ω/θ); the 2D tab is the solver schematic.
   governor: {
     label: 'Flyball governor', has3D: true, control: 'slider',
-    build: () => buildGovernor(), v2: governor2D, v3: governor3D,
+    build: () => buildGovernor(), v2: governor2D, v3: governorQuine3D,
   },
   arm: {
     label: 'Robot arm', has3D: true, control: 'slider',
