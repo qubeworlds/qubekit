@@ -63,6 +63,9 @@ const brass = () => ({ color: [0.72, 0.54, 0.31, 1], metallic: 0.92, roughness: 
 const bronze = () => ({ color: [0.80, 0.50, 0.20, 1], metallic: 0.88, roughness: 0.32 });
 const dark = () => ({ color: [0.11, 0.12, 0.15, 1], metallic: 0.4, roughness: 0.5 });
 const springMat = () => ({ color: [0.62, 0.70, 0.82, 1], metallic: 0.85, roughness: 0.4 });
+// the winding wire-seam: a muted, low-sheen bronze so it reads as a wire detail
+// without the bright brass highlight (darker colour + higher roughness).
+const seamMat = () => ({ color: [0.42, 0.31, 0.18, 1], metallic: 0.6, roughness: 0.6 });
 
 // Resting collar height (θ=0) from the rigid-link equation — the scene authors
 // the collar + spring at rest; the skill drives them once it runs.
@@ -137,7 +140,7 @@ function buildGovernorScene() {
     // AROUND with the spin, so the coil visibly winds (a symmetric ring can't show
     // the rotation; this seam makes the turning vertical axis read in the middle).
     E({ name: 'seam' + k, geometry: { kind: 'sphere', radius: G.springMinor * 1.7, rings: 8, segments: 10 },
-      transform: { position: [G.springR, yk, 0] }, material: brass() });
+      transform: { position: [G.springR, yk, 0] }, material: seamMat() });
   }
 
   // --- arms (the "strings"), balls, and the lower links -----------------------
