@@ -41,59 +41,71 @@ const ROTORS = [
   { nm: 'RR', sx: 1, sz: -1, dir: 1, col: [0.36, 0.55, 0.95] },
 ];
 
-// In-engine flight controller + prop carrier. Input axes from the host:
-//   0..3 — each rotor's normalised throttle (drives the visual hub spin)
-//   4 pitchTarget   5 rollTarget   6 yawRateTarget   7 targetHeight
-// The body is a real dynamic rigid body; the controller actuates it with forces
-// and torques (the gains are tuned deterministically in the engine's
-// `flight controller` unit test — keep them in sync). Then each prop hub (a root)
-// is placed from the body's PHYSICS-synced pose and spun about the body-local up
-// axis, so the props ride the real airframe motion. The body's own orientation
-// comes from Jolt (sync_rotation), read here as Euler.
+// In-engine flight controller — the REAL quad. Lift is the collective rotor
+// thrust along the BODY-UP axis (so an inverted craft is pushed DOWN — a rotor
+// can't pull), tilt-compensated to hold altitude while upright. A flight
+// controller stabilises attitude with a PD torque toward a lean commanded by the
+// wrench imbalance, with gentle station-keeping, and fades out when it can't fly
+// so a grounded craft just settles flat. The prop hubs (roots) ride the body's
+// physics-synced pose and spin at each rotor's actual differential thrust.
+//
+// Input axes from the host (the @qubekit/solver wrench): 4 = collective thrust
+// (N), 5 = roll, 6 = pitch, 7 = yaw. Gains are tuned deterministically in the
+// engine's "real quad + flight controller" unit test — keep them identical.
 const DRONE_SKILL = `
-var M = ${MASS}, G = 9.81, W = M * G;
-var KPH = 7.0, KDH = 4.5, THRMAX = 14.0; // altitude hold (thrust vs gravity)
-var KPA = 0.9, KDA = 0.30;               // attitude hold (torque toward target tilt)
-var KYAW = 0.18;                          // yaw-rate hold
-var KPP = 2.2, KDP = 2.4;                 // horizontal position hold
-
-var HUBS = ['hubFR','hubFL','hubRL','hubRR'];
-var DIR  = [-1, 1, -1, 1];
-var OFF  = [[${ARM_A},0,${ARM_A}],[${-ARM_A},0,${ARM_A}],[${-ARM_A},0,${-ARM_A}],[${ARM_A},0,${-ARM_A}]];
-var ANG  = [0, 0, 0, 0];
-var MAXW = 22.0; // rad/s at full throttle — fast but readable, not a strobe
-
-// 3x3 rotation helpers (engine's Euler setter is ZYX: R = Rz·Ry·Rx).
-function matRx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
-function matRy(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
-function matRz(a){var c=Math.cos(a),s=Math.sin(a);return [[c,-s,0],[s,c,0],[0,0,1]];}
-function mul(A,B){var R=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;for(var k=0;k<3;k++)s+=A[i][k]*B[k][j];R[i][j]=s;}return R;}
-function mv(R,v){return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2], R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2], R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];}
-function toZYX(R){var y=Math.asin(Math.max(-1,Math.min(1,-R[2][0])));return {x:Math.atan2(R[2][1],R[2][2]), y:y, z:Math.atan2(R[1][0],R[0][0])};}
+var NAME='body';
+var HUBS=['hubFR','hubFL','hubRL','hubRR'];
+var A = ${ARM_A}, W = ${MASS} * 9.81;
+var OFF = [[A,0,A],[-A,0,A],[-A,0,-A],[A,0,-A]]; // FR FL RL RR rotor positions
+var SX  = [1,-1,-1,1];   // roll split: +X rotors vs -X (visual prop spin)
+var SZ  = [1,1,-1,-1];   // pitch split: +Z (front) vs -Z
+var SP  = [-1,1,-1,1];   // yaw split: by spin direction
+var DIR = [-1,1,-1,1];   // visual hub spin direction
+var KLEAN=3.0, LEANMAX=0.38;  // commanded lean from the wrench imbalance (rad)
+var KPOSP=0.05, KPOSD=0.10;   // station-keeping: gentle re-centre when balanced
+var KP=1.0, KD=0.45;          // attitude PD (world-frame torque)
+var KYR=60.0, KYAW=0.18;      // yaw-rate target (from wrench yaw) and its gain
+var KDH=0.9, MAXT=20.0, DRAGL=1.1; // vertical damping; thrust clamp; aero drag
+var ANG=[0,0,0,0];
+function cl(v,lo,hi){return v<lo?lo:(v>hi?hi:v);}
+function rx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
+function ry(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
+function rz(a){var c=Math.cos(a),s=Math.sin(a);return [[c,-s,0],[s,c,0],[0,0,1]];}
+function mul(P,Q){var R=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;for(var k=0;k<3;k++)s+=P[i][k]*Q[k][j];R[i][j]=s;}return R;}
+function mv(R,v){return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2],R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2],R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];}
+function zyx(R){var y=Math.asin(Math.max(-1,Math.min(1,-R[2][0])));return {x:Math.atan2(R[2][1],R[2][2]),y:y,z:Math.atan2(R[1][0],R[0][0])};}
 
 onPreStep(function (dt) {
-  var b = world.get('body');
+  var b = world.get(NAME);
   var p = b.body.position, v = b.body.velocity, w = b.body.angularVelocity;
   var e = b.transform.rotation; // Euler ZYX, synced from Jolt
-
-  // --- flight controller: actuate the real rigid body ---
-  var thrust = W + KPH * (input(7) - p.y) - KDH * v.y; // altitude hold, vs gravity
-  if (thrust < 0) thrust = 0; else if (thrust > THRMAX) thrust = THRMAX;
-  b.body.addForce({ x: 0, y: thrust, z: 0 });
-  b.body.addTorque({ x: KPA * (input(4) - e.x) - KDA * w.x,   // pitch
-                     y: KYAW * (input(6) - w.y),               // yaw rate
-                     z: KPA * (input(5) - e.z) - KDA * w.z }); // roll
-  b.body.addForce({ x: -KPP * p.x - KDP * v.x, y: 0, z: -KPP * p.z - KDP * v.z });
-
-  // --- carry the prop hubs along the body's physics pose ---
-  var Rb = mul(mul(matRz(e.z), matRy(e.y)), matRx(e.x));
+  var Rb = mul(mul(rz(e.z), ry(e.y)), rx(e.x));
+  var up = mv(Rb, [0,1,0]); // body-up in world; the rotors push ONLY along this
+  var C = input(4), wr = input(5), wp = input(6), wy = input(7);
+  var fly = cl((C / W - 0.5) / 0.5, 0, 1); // can it fly? (collective vs weight)
+  // target lean from the imbalance + a station-keeping counter-lean. Roll and
+  // pitch take opposite position signs (up.x = -sin roll, up.z = +sin pitch).
+  var tRoll  = cl(KLEAN*wr + (KPOSP*p.x + KPOSD*v.x), -LEANMAX, LEANMAX);
+  var tPitch = cl(KLEAN*wp - (KPOSP*p.z + KPOSD*v.z), -LEANMAX, LEANMAX);
+  // collective body-up thrust, tilt-compensated; inverted (up.y<0) -> falls.
+  var upy = up[1];
+  var thrust = cl((C - KDH*v.y) / (upy > 0.35 ? upy : 0.35), 0, MAXT);
+  b.body.addForce({x:up[0]*thrust, y:up[1]*thrust, z:up[2]*thrust});
+  b.body.addForce({x:-DRAGL*v.x, y:-DRAGL*v.y, z:-DRAGL*v.z});
+  // attitude PD toward the target lean (world frame), faded by 'fly'.
+  var rollD  = KP*(tRoll  - e.z);
+  var pitchD = KP*(tPitch - e.x);
+  var yawD   = KYAW*(KYR*wy - w.y);
+  b.body.addTorque({x:fly*pitchD - KD*w.x, y:fly*yawD - KD*w.y, z:fly*rollD - KD*w.z});
+  // prop hubs: ride the body pose, spin at the actual (differential) thrust.
   for (var i = 0; i < 4; i++) {
-    ANG[i] = (ANG[i] + DIR[i] * input(i) * MAXW * dt) % 6.2831853;
+    var th = thrust*0.25 + fly*(rollD*SX[i] + pitchD*SZ[i] + yawD*SP[i])*0.4; if (th < 0) th = 0;
+    var o = mv(Rb, OFF[i]);
     var h = world.get(HUBS[i]);
     if (!h) continue;
-    var o = mv(Rb, OFF[i]);
+    ANG[i] = (ANG[i] + DIR[i] * 9.0 * Math.sqrt(th) * dt) % 6.2831853;
     h.transform.position = { x: p.x + o[0], y: p.y + o[1], z: p.z + o[2] };
-    h.transform.rotation = toZYX(mul(Rb, matRy(ANG[i]))); // disc stays parallel to body
+    h.transform.rotation = zyx(mul(Rb, ry(ANG[i]))); // disc stays parallel to body
   }
 });
 `;
@@ -201,8 +213,6 @@ function loadAll(e, scene) {
   e.enqueue({ type: 'config', config: { preferences: { grid: false, gizmo: false } } });
   e.enqueue({ type: 'scene', json: JSON.stringify(scene) });
   if (!e.skillLoaded) { e.enqueue({ type: 'skill', code: DRONE_SKILL }); e.skillLoaded = true; }
-  // arm the altitude setpoint at hover before the first wrench frame lands.
-  e.enqueue({ type: 'input', axis: 7, value: HOVER_Y });
 }
 
 // Match the editor's 3D-view contract: init3D(model, container) -> view handle.
@@ -210,10 +220,6 @@ export function init3D(model, container) {
   const e = bootEngine();
   const scene = buildDroneScene();
   let raf = 0;
-  const lastNorm = [NaN, NaN, NaN, NaN];
-  let heading = 0; // integrated yaw target (rad) — for the height/altitude mapping only
-
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   // Resize the drawing buffer to the container. CRITICAL: bail when the container
   // has no size — when the tab is hidden (display:none) or the page is backgrounded
@@ -237,45 +243,18 @@ export function init3D(model, container) {
   const reSync = () => { sizeCanvas(); window.dispatchEvent(new Event('resize')); };
   const onVisible = () => { if (document.visibilityState === 'visible') requestAnimationFrame(reSync); };
 
-  // Per frame: push each slider's throttle (axes 0..3 — visual prop spin), then
-  // turn the solver wrench into flight TARGETS the in-engine controller flies to.
+  // Per frame: hand the in-engine flight controller the raw @qubekit/solver wrench
+  // — collective thrust + roll/pitch/yaw — and let it fly the real rigid body. The
+  // controller derives per-rotor body-up thrust from these (lift, lean, yaw all
+  // emerge); the visual props spin at those thrusts. Nothing here pre-bakes the
+  // attitude — the physics does.
   const flight = () => {
-    if (e.ready && model) {
-      if (model.values && model.sliders) {
-        for (let i = 0; i < 4 && i < model.values.length; i++) {
-          const s = model.sliders[i];
-          const span = (s.max - s.min) || 1;
-          const norm = clamp((model.values[i] - s.min) / span, 0, 1);
-          if (norm !== lastNorm[i]) { e.enqueue({ type: 'input', axis: i, value: norm }); lastNorm[i] = norm; }
-        }
-      }
-      if (typeof model.wrench === 'function') {
-        const w = model.wrench();
-        // Only steer when there's enough lift to actually FLY. The body rests on a
-        // wide, flat footprint that tips past ~4°, so commanding a bank while it
-        // can't lift off would flip it onto its side and leave it stuck there. Gate
-        // attitude + yaw by lift-vs-weight: below ~hover the targets fade to 0, so a
-        // grounded craft sits level (and rights itself if it had tipped); it only
-        // banks once airborne. That's also how a real drone behaves — idle on the
-        // ground = level, not leaning on a throttle imbalance.
-        const liftRatio = w.weight > 0 ? w.thrust / w.weight : 0;
-        const authority = clamp((liftRatio - 0.85) / 0.25, 0, 1);
-        // attitude targets: more thrust on a side lifts THAT side. The controller
-        // drives the body's ZYX Euler, where +roll(e.z) lifts +X and +pitch maps to
-        // nose-up, so roll takes the solver's sign directly (w.roll>0 = right-heavy
-        // = right up). NB: opposite sign to the Three.js view, whose Z-roll
-        // handedness is flipped — matching it here banked the wrong way.
-        const pitchT = clamp(w.pitch * 18, -0.45, 0.45) * authority;
-        const rollT = clamp(w.roll * 18, -0.45, 0.45) * authority;
-        const yawRateT = clamp(w.yaw * 60, -1.5, 1.5) * authority; // rad/s
-        // altitude setpoint: lift vs weight raises/lowers it; below REST_Y commits
-        // to a landing (the static table stops the descent for real).
-        const targetH = clamp(HOVER_Y + (w.thrust - w.weight) * 0.6, -0.2, 1.9);
-        e.enqueue({ type: 'input', axis: 4, value: pitchT });
-        e.enqueue({ type: 'input', axis: 5, value: rollT });
-        e.enqueue({ type: 'input', axis: 6, value: yawRateT });
-        e.enqueue({ type: 'input', axis: 7, value: targetH });
-      }
+    if (e.ready && model && typeof model.wrench === 'function') {
+      const w = model.wrench();
+      e.enqueue({ type: 'input', axis: 4, value: w.thrust }); // collective (N)
+      e.enqueue({ type: 'input', axis: 5, value: w.roll });   // roll wrench (N·m)
+      e.enqueue({ type: 'input', axis: 6, value: w.pitch });  // pitch wrench
+      e.enqueue({ type: 'input', axis: 7, value: w.yaw });    // yaw wrench
     }
     raf = requestAnimationFrame(flight);
   };
@@ -286,7 +265,6 @@ export function init3D(model, container) {
       sizeCanvas();
       if (e.ready) loadAll(e, scene); else e.pending = scene;
       e.setAutoplay(true);
-      lastNorm.fill(NaN); heading = 0; // re-send inputs after a (re)mount
       if (!ro && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(reSync); ro.observe(container); }
       document.addEventListener('visibilitychange', onVisible);
       window.addEventListener('pageshow', reSync);
