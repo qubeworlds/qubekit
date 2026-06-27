@@ -120,10 +120,13 @@ function buildDroneScene() {
   const E = (o) => ents.push(o);
 
   // The TABLE: a static box collider the drone lands on, top surface at y = 0.
+  // Surfaced with a procedural stone texture (host-generated, handed to the engine
+  // via quine_provide_asset; the material's `texture` names it). Base colour is a
+  // light cool grey the texture multiplies.
   E({ name: 'floor', geometry: { kind: 'box', half: [5, 0.15, 5] },
     transform: { position: [0, -0.15, 0] },
     body: { motion: 'static', collider: { kind: 'box', halfExtents: [5, 0.15, 5] }, friction: 0.7 },
-    material: { color: [0.17, 0.20, 0.27, 1], metallic: 0.0, roughness: 0.92 } });
+    material: { color: [0.78, 0.78, 0.82, 1], texture: STONE_ASSET, metallic: 0.0, roughness: 0.96 } });
 
   // The BODY: a real DYNAMIC rigid body (mass = MASS). Its box collider spans the
   // duct footprint and is shallow, so the craft rests flat on its ducts. Jolt
@@ -179,6 +182,77 @@ function buildDroneScene() {
   return { schemaVersion: 1, name: 'drone', gravity: [0, -9.81, 0], entities: ents };
 }
 
+// --- procedural stone texture -----------------------------------------------
+// The engine is content-agnostic — it samples whatever texture the host hands it.
+// So we generate a stone slab here (fractal value-noise greys + a few darker
+// veins + speckle), encode it as PNG, and hand the bytes to the engine. The floor
+// material references it by name; the renderer samples it with the box's UVs.
+const STONE_ASSET = 'qubekit_stone.png';
+let stonePngBytes = null;
+
+function makeStoneTexture(size) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  // A few octaves of value noise: a coarse random lattice bilinearly sampled,
+  // summed at halving amplitude. Seeded + deterministic (no Math.random reliance
+  // on order — fixed seed gives the same slab every load).
+  let seed = 0x9e3779b9;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const octave = (cells) => {
+    const g = new Float32Array((cells + 1) * (cells + 1));
+    for (let i = 0; i < g.length; i++) g[i] = rnd();
+    return (x, y) => {
+      const fx = x * cells, fy = y * cells;
+      const ix = Math.floor(fx), iy = Math.floor(fy);
+      const tx = fx - ix, ty = fy - iy;
+      const s = (a, b, t) => a + (b - a) * (t * t * (3 - 2 * t)); // smoothstep lerp
+      const i00 = iy * (cells + 1) + ix;
+      return s(s(g[i00], g[i00 + 1], tx), s(g[i00 + cells + 1], g[i00 + cells + 2], tx), ty);
+    };
+  };
+  const o1 = octave(4), o2 = octave(8), o3 = octave(16), o4 = octave(48);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      let n = o1(u, v) * 0.5 + o2(u, v) * 0.27 + o3(u, v) * 0.15 + o4(u, v) * 0.08;
+      // mid grey with mottling; veins where the mid-frequency noise dips.
+      let g = 0.42 + n * 0.42;
+      const vein = Math.abs(o3(u, v) - 0.5);
+      if (vein < 0.04) g *= 0.6 + vein * 6; // darker cracks
+      g += (rnd() - 0.5) * 0.05; // fine speckle
+      g = Math.max(0, Math.min(1, g));
+      const i = (y * size + x) * 4;
+      // a faintly warm grey stone (R≈G slightly > B)
+      d[i] = (g * 255) | 0;
+      d[i + 1] = (g * 251) | 0;
+      d[i + 2] = (g * 240) | 0;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const b64 = cv.toDataURL('image/png').split(',')[1];
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+// Hand the stone PNG to the engine's asset registry (must precede the scene that
+// references it). Staged into wasm memory with _malloc/HEAPU8 like every asset.
+function provideStone() {
+  try {
+    if (!stonePngBytes) stonePngBytes = makeStoneTexture(512);
+    const m = window.Module, n = stonePngBytes.length;
+    const p = m._malloc(n);
+    m.HEAPU8.set(stonePngBytes, p);
+    m.ccall('quine_provide_asset', null, ['string', 'number', 'number'], [STONE_ASSET, p, n]);
+    m._free(p);
+  } catch (_) {}
+}
+
 // The engine is a single Emscripten module per page; boot it once, lazily.
 let engine = null;
 function bootEngine() {
@@ -212,6 +286,7 @@ function bootEngine() {
 // Hand the engine the scene, the grid-off preference, and (once) the flight skill.
 function loadAll(e, scene) {
   e.enqueue({ type: 'config', config: { preferences: { grid: false, gizmo: false } } });
+  provideStone(); // register the stone PNG BEFORE the scene that references it
   e.enqueue({ type: 'scene', json: JSON.stringify(scene) });
   if (!e.skillLoaded) { e.enqueue({ type: 'skill', code: DRONE_SKILL }); e.skillLoaded = true; }
 }
