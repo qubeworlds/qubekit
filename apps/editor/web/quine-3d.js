@@ -1,35 +1,39 @@
 // Quine-engine 3D view for the drone — the same mechanism as `drone-3d.js`, but
-// rendered by the real **Quine** wasm engine (the one QubeKit ships on) instead
-// of Three.js. The airframe is authored as a Quine scene built from the engine's
-// primitive library (box / roundedBox / cylinder / tube / torus) and its
-// scene-graph parenting: body + arms + ducts + camera are all parented to
-// `body`, so the whole airframe banks as one.
+// rendered AND SIMULATED by the real **Quine** wasm engine (Jolt physics). Unlike
+// the Three.js view (which eases a kinematic attitude), this drone is a real
+// dynamic rigid body: gravity pulls it down, the four rotor thrusts push it up,
+// and it collides with — and lands on — the table. A self-stabilising flight
+// controller runs as an in-engine skill (altitude-hold + attitude PD + position
+// hold), so RPM truly runs against gravity and a throttle cut drops it onto the
+// table for real.
 //
-// The craft is solver-driven, exactly like dropdown 4: the host integrates the
-// damped response of `@qubekit/solver`'s body wrench (quadWrench) — a thrust
-// imbalance tilts it, a spin-direction imbalance yaws it, lift-vs-weight sets its
-// height — and feeds the attitude (pitch/yaw/roll/height) plus the four rotor
-// throttles into input axes. A small in-engine skill turns those axes into the
-// body's transform and the four spinning prop hubs, so the Quine view *flies*
-// the same way the Three.js view does, not just spins the props.
+// Authority split:
+//   • host (this file) — turns @qubekit/solver's body wrench into flight TARGETS
+//     (pitch / roll / yaw-rate / target-height) and the four rotor throttles,
+//     fed into engine input axes every frame.
+//   • skill (in-engine) — the flight controller: applies real thrust forces vs
+//     gravity, stabilising torques, and position hold to the dynamic `body`; then
+//     carries the four spinning prop hubs along the body's physics-driven pose.
 //
-// The engine is content-agnostic: it carries no meshes, just renders the scene
-// it's handed. We boot it ONCE (Emscripten is a singleton) on a canvas and feed
-// the scene with `quine_enqueue`; switching mechanisms re-attaches that canvas.
+// The body is a dynamic box collider (its orientation syncs back into the
+// Transform); the table is a static box collider. Arms / ducts / rims / camera
+// are parented to the body so the airframe is one rigid unit. Hubs are roots the
+// skill places from the body's synced pose (so they ride the real motion) and
+// spins from the throttle; blades parent to the hubs.
 //
-// Engine bundle defaults to the public CDN; override with `?engine=<base>` to
-// test an unreleased engine.
+// Engine bundle defaults to the public CDN; override with `?engine=<base>`.
 
 const ENGINE_BASE = (new URLSearchParams(location.search).get('engine') ||
   'https://cdn.qubeworlds.com/engine').replace(/\/+$/, '');
 const BACKEND = 'quine-webgl2'; // webgl2 is the broad-device floor (iPad Safari)
-const BODY_Y = 1.0;             // the airframe hovers a metre above the floor at rest
 
-const S = 100;                  // scene units: QubeKit mm /100 → ~metres
-const ARM_A = (110 / S) / Math.SQRT2; // X-frame half-diagonal (hub offset from centre)
+const S = 100;                          // scene units: QubeKit mm /100 → ~metres
+const ARM_A = (110 / S) / Math.SQRT2;   // X-frame half-diagonal (hub offset)
+const MASS = 0.3;                       // kg — matches the solver's 300 g cinewhoop
+const HOVER_Y = 1.0;                    // altitude setpoint at hover throttle
+const REST_Y = 0.09;                    // body-centre height resting on the table
 
 // FR & RL spin CW (red); FL & RR spin CCW (blue) — the X-frame mixer pairing.
-// Axis index = rotor index = slider index, so input(i) is rotor i's throttle.
 const ROTORS = [
   { nm: 'FR', sx: 1, sz: 1, dir: -1, col: [0.88, 0.28, 0.28] },
   { nm: 'FL', sx: -1, sz: 1, dir: 1, col: [0.36, 0.55, 0.95] },
@@ -37,56 +41,59 @@ const ROTORS = [
   { nm: 'RR', sx: 1, sz: -1, dir: 1, col: [0.36, 0.55, 0.95] },
 ];
 
-// In-engine skill. The host feeds eight input axes every frame:
-//   0..3 — each rotor's normalised throttle (drives hub spin speed)
-//   4    — body pitch (rad, X)   5 — body heading/yaw (rad, Y)
-//   6    — body roll (rad, Z)    7 — body height (world Y)
-// The skill writes the body root's transform from 4..7, then places + spins each
-// prop hub. Hubs are ROOTS (not parented), because the parent pass would
-// overwrite a parented entity's rotation and we need to own the spin — so the
-// skill itself rides them along the body: each hub's rest offset is rotated by
-// the body attitude (rotZYX matches the engine's fromEulerZYX) and its spin is
-// folded into the yaw slot. Spin angle is accumulated here (reading a continuous
-// Y rotation back as Euler would alias at ±90°).
+// In-engine flight controller + prop carrier. Input axes from the host:
+//   0..3 — each rotor's normalised throttle (drives the visual hub spin)
+//   4 pitchTarget   5 rollTarget   6 yawRateTarget   7 targetHeight
+// The body is a real dynamic rigid body; the controller actuates it with forces
+// and torques (the gains are tuned deterministically in the engine's
+// `flight controller` unit test — keep them in sync). Then each prop hub (a root)
+// is placed from the body's PHYSICS-synced pose and spun about the body-local up
+// axis, so the props ride the real airframe motion. The body's own orientation
+// comes from Jolt (sync_rotation), read here as Euler.
 const DRONE_SKILL = `
+var M = ${MASS}, G = 9.81, W = M * G;
+var KPH = 7.0, KDH = 4.5, THRMAX = 14.0; // altitude hold (thrust vs gravity)
+var KPA = 0.9, KDA = 0.30;               // attitude hold (torque toward target tilt)
+var KYAW = 0.18;                          // yaw-rate hold
+var KPP = 2.2, KDP = 2.4;                 // horizontal position hold
+
 var HUBS = ['hubFR','hubFL','hubRL','hubRR'];
 var DIR  = [-1, 1, -1, 1];
 var OFF  = [[${ARM_A},0,${ARM_A}],[${-ARM_A},0,${ARM_A}],[${-ARM_A},0,${-ARM_A}],[${ARM_A},0,${-ARM_A}]];
 var ANG  = [0, 0, 0, 0];
 var MAXW = 22.0; // rad/s at full throttle — fast but readable, not a strobe
-var BODYY = ${BODY_Y};
 
-// 3x3 rotation helpers. The engine's transform.rotation setter consumes Euler in
-// ZYX order (fromEulerZYX → R = Rz·Ry·Rx), so we build the body attitude that way
-// and round-trip composed rotations back through toZYX for the setter.
+// 3x3 rotation helpers (engine's Euler setter is ZYX: R = Rz·Ry·Rx).
 function matRx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
 function matRy(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
 function matRz(a){var c=Math.cos(a),s=Math.sin(a);return [[c,-s,0],[s,c,0],[0,0,1]];}
 function mul(A,B){var R=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;for(var k=0;k<3;k++)s+=A[i][k]*B[k][j];R[i][j]=s;}return R;}
 function mv(R,v){return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2], R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2], R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];}
-// Extract ZYX Euler from R (inverse of fromEulerZYX) so a composed matrix can be
-// handed back to the Euler setter unchanged.
 function toZYX(R){var y=Math.asin(Math.max(-1,Math.min(1,-R[2][0])));return {x:Math.atan2(R[2][1],R[2][2]), y:y, z:Math.atan2(R[1][0],R[0][0])};}
 
 onPreStep(function (dt) {
-  var pitch = input(4), yaw = input(5), roll = input(6);
-  var hgt = input(7); if (hgt === 0) hgt = BODYY; // pre-arm default: sit at rest height
-  var Rb = mul(mul(matRz(roll), matRy(yaw)), matRx(pitch)); // body attitude
-  var body = world.get('body');
-  if (body) {
-    body.transform.position = { x: 0, y: hgt, z: 0 };
-    body.transform.rotation = { x: pitch, y: yaw, z: roll };
-  }
+  var b = world.get('body');
+  var p = b.body.position, v = b.body.velocity, w = b.body.angularVelocity;
+  var e = b.transform.rotation; // Euler ZYX, synced from Jolt
+
+  // --- flight controller: actuate the real rigid body ---
+  var thrust = W + KPH * (input(7) - p.y) - KDH * v.y; // altitude hold, vs gravity
+  if (thrust < 0) thrust = 0; else if (thrust > THRMAX) thrust = THRMAX;
+  b.body.addForce({ x: 0, y: thrust, z: 0 });
+  b.body.addTorque({ x: KPA * (input(4) - e.x) - KDA * w.x,   // pitch
+                     y: KYAW * (input(6) - w.y),               // yaw rate
+                     z: KPA * (input(5) - e.z) - KDA * w.z }); // roll
+  b.body.addForce({ x: -KPP * p.x - KDP * v.x, y: 0, z: -KPP * p.z - KDP * v.z });
+
+  // --- carry the prop hubs along the body's physics pose ---
+  var Rb = mul(mul(matRz(e.z), matRy(e.y)), matRx(e.x));
   for (var i = 0; i < 4; i++) {
     ANG[i] = (ANG[i] + DIR[i] * input(i) * MAXW * dt) % 6.2831853;
     var h = world.get(HUBS[i]);
     if (!h) continue;
-    // hub rides the body: position = body + Rb·offset; orientation = Rb·spin so the
-    // blade disc stays parallel to the airframe (spin about the body-local up axis,
-    // applied AFTER the tilt — not folded into the heading, which would precess it).
-    var p = mv(Rb, OFF[i]);
-    h.transform.position = { x: p[0], y: hgt + p[1], z: p[2] };
-    h.transform.rotation = toZYX(mul(Rb, matRy(ANG[i])));
+    var o = mv(Rb, OFF[i]);
+    h.transform.position = { x: p.x + o[0], y: p.y + o[1], z: p.z + o[2] };
+    h.transform.rotation = toZYX(mul(Rb, matRy(ANG[i]))); // disc stays parallel to body
   }
 });
 `;
@@ -95,19 +102,23 @@ onPreStep(function (dt) {
 function buildDroneScene() {
   const bodyW = 90 / S, bodyH = 26 / S, bodyD = 70 / S;
   const ductR = 62 / S, ductH = 16 / S, propR = 52 / S;
-  const a = ARM_A; // X-frame half-diagonal
+  const a = ARM_A;
   const ents = [];
   const E = (o) => ents.push(o);
 
-  // A solid floor the airframe shadows onto (the engine's own grid is hidden via
-  // a config frame), plus the sky gradient set below.
+  // The TABLE: a static box collider the drone lands on, top surface at y = 0.
   E({ name: 'floor', geometry: { kind: 'box', half: [5, 0.15, 5] },
-    transform: { position: [0, -0.15, 0] }, material: { color: [0.17, 0.20, 0.27, 1], metallic: 0.0, roughness: 0.92 } });
+    transform: { position: [0, -0.15, 0] },
+    body: { motion: 'static', collider: { kind: 'box', halfExtents: [5, 0.15, 5] }, friction: 0.7 },
+    material: { color: [0.17, 0.20, 0.27, 1], metallic: 0.0, roughness: 0.92 } });
 
-  // The body is the airframe root; the skill flies it. Everything that should
-  // bank with the craft is parented to it (camera, arms, duct shrouds, rims).
+  // The BODY: a real DYNAMIC rigid body (mass = MASS). Its box collider spans the
+  // duct footprint and is shallow, so the craft rests flat on its ducts. Jolt
+  // owns its pose; sync_rotation feeds the bank back into the Transform.
   E({ name: 'body', geometry: { kind: 'roundedBox', half: [bodyW / 2, bodyH / 2, bodyD / 2], radius: 0.05, segments: 4 },
-    transform: { position: [0, BODY_Y, 0] }, material: { color: [0.82, 0.84, 0.88, 1], metallic: 0.5, roughness: 0.45 } });
+    transform: { position: [0, HOVER_Y, 0] },
+    body: { motion: 'dynamic', mass: MASS, friction: 0.6, collider: { kind: 'box', halfExtents: [a + ductR, REST_Y, a + ductR] } },
+    material: { color: [0.82, 0.84, 0.88, 1], metallic: 0.5, roughness: 0.45 } });
   E({ name: 'cam', geometry: { kind: 'box', half: [0.10, 0.07, 0.07] },
     transform: { position: [0, -0.01, bodyD / 2 + 0.10] }, parent: { entity: 'body' },
     material: { color: [0.08, 0.09, 0.12, 1], metallic: 0.3, roughness: 0.5 } });
@@ -115,8 +126,7 @@ function buildDroneScene() {
   for (const r of ROTORS) {
     const x = r.sx * a, z = r.sz * a;
     const ang = -Math.atan2(z, x), dist = Math.hypot(x, z);
-    // arm + duct shroud + rim all ride the body (parented; local coords relative
-    // to the body centre, which sits at BODY_Y).
+    // arm + duct shroud + rim ride the body (parented; local coords).
     E({ name: 'arm' + r.nm, geometry: { kind: 'box', half: [dist / 2, 0.022, 0.022] },
       transform: { position: [x / 2, -0.02, z / 2], rotation: [0, ang, 0] }, parent: { entity: 'body' },
       material: { color: [0.16, 0.18, 0.22, 1], metallic: 0.4, roughness: 0.5 } });
@@ -126,10 +136,10 @@ function buildDroneScene() {
     E({ name: 'rim' + r.nm, geometry: { kind: 'torus', majorRadius: (propR + 0.02 + ductR) / 2, minorRadius: 0.018, majorSegments: 40, minorSegments: 14 },
       transform: { position: [x, ductH / 2, z] }, parent: { entity: 'body' },
       material: { color: [0.10, 0.11, 0.14, 1], metallic: 0.3, roughness: 0.5 } });
-    // hub is a ROOT (world coords) so the skill owns its rotation/position; the
-    // skill carries it along the body's flight. Blades parent to it and ride the spin.
+    // hub is a ROOT (world coords) so the skill owns its pose; it carries it along
+    // the body's physics motion. Blades parent to it and ride the spin.
     E({ name: 'hub' + r.nm, geometry: { kind: 'cylinder', radius: 0.045, height: 0.05 },
-      transform: { position: [x, BODY_Y, z] }, material: { color: [0.05, 0.05, 0.06, 1], metallic: 0.6, roughness: 0.4 } });
+      transform: { position: [x, HOVER_Y, z] }, material: { color: [0.05, 0.05, 0.06, 1], metallic: 0.6, roughness: 0.4 } });
     for (let b = 0; b < 2; b++) {
       E({ name: 'blade' + r.nm + b, geometry: { kind: 'box', half: [propR, 0.006, 0.05] },
         transform: { position: [0, 0.02, 0], rotation: [0, b * Math.PI / 2, 0] }, parent: { entity: 'hub' + r.nm },
@@ -139,8 +149,8 @@ function buildDroneScene() {
 
   E({ name: 'sun', light: { kind: 'directional', direction: [-0.4, -1.0, -0.5], intensity: 1.15, castShadows: true } });
   E({ name: 'sky', environment: { sky: { zenith: [0.22, 0.36, 0.58], horizon: [0.60, 0.66, 0.72] }, ambient: { intensity: 0.6 } } });
-  E({ name: 'camera', camera: { fovY: 0.7, controller: { kind: 'orbit', target: [0, 0.95, 0], distance: 4.8, yaw: 0.7, pitch: 0.40 } } });
-  return { schemaVersion: 1, name: 'drone', entities: ents };
+  E({ name: 'camera', camera: { fovY: 0.7, controller: { kind: 'orbit', target: [0, 0.75, 0], distance: 4.8, yaw: 0.7, pitch: 0.40 } } });
+  return { schemaVersion: 1, name: 'drone', gravity: [0, -9.81, 0], entities: ents };
 }
 
 // The engine is a single Emscripten module per page; boot it once, lazily.
@@ -178,8 +188,8 @@ function loadAll(e, scene) {
   e.enqueue({ type: 'config', config: { preferences: { grid: false, gizmo: false } } });
   e.enqueue({ type: 'scene', json: JSON.stringify(scene) });
   if (!e.skillLoaded) { e.enqueue({ type: 'skill', code: DRONE_SKILL }); e.skillLoaded = true; }
-  // arm the body at rest height before the first wrench frame lands
-  e.enqueue({ type: 'input', axis: 7, value: BODY_Y });
+  // arm the altitude setpoint at hover before the first wrench frame lands.
+  e.enqueue({ type: 'input', axis: 7, value: HOVER_Y });
 }
 
 // Match the editor's 3D-view contract: init3D(model, container) -> view handle.
@@ -188,11 +198,8 @@ export function init3D(model, container) {
   const scene = buildDroneScene();
   let raf = 0;
   const lastNorm = [NaN, NaN, NaN, NaN];
+  let heading = 0; // integrated yaw target (rad) — for the height/altitude mapping only
 
-  // Damped attitude state — eased toward the wrench's steady response, exactly as
-  // drone-3d.js does, so four raw RPM sliders read as bank / turn / climb.
-  let heading = 0, rollA = 0, pitchA = 0, hgt = BODY_Y, lastTs = 0;
-  const ease = (cur, target, dt, k) => cur + (target - cur) * Math.min(1, dt * k);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   const sizeCanvas = () => {
@@ -202,13 +209,10 @@ export function init3D(model, container) {
     e.canvas.height = Math.round(h * dpr);
   };
 
-  // Per frame: push each slider's throttle (axes 0..3) when it changes, then
-  // integrate the solver wrench into the body's flight and push it (axes 4..7).
-  const flight = (ts) => {
+  // Per frame: push each slider's throttle (axes 0..3 — visual prop spin), then
+  // turn the solver wrench into flight TARGETS the in-engine controller flies to.
+  const flight = () => {
     if (e.ready && model) {
-      if (!lastTs) lastTs = ts;
-      const dt = Math.min(0.05, (ts - lastTs) / 1000); lastTs = ts;
-
       if (model.values && model.sliders) {
         for (let i = 0; i < 4 && i < model.values.length; i++) {
           const s = model.sliders[i];
@@ -217,20 +221,20 @@ export function init3D(model, container) {
           if (norm !== lastNorm[i]) { e.enqueue({ type: 'input', axis: i, value: norm }); lastNorm[i] = norm; }
         }
       }
-
       if (typeof model.wrench === 'function') {
         const w = model.wrench();
-        const targetRoll = clamp(-w.roll * 32, -0.5, 0.5);  // right-heavy → bank
-        const targetPitch = clamp(w.pitch * 32, -0.5, 0.5); // front-heavy → pitch
-        const targetH = clamp(BODY_Y + (w.thrust - w.weight) * 0.3, BODY_Y * 0.5, BODY_Y * 1.85);
-        rollA = ease(rollA, targetRoll, dt, 3);
-        pitchA = ease(pitchA, targetPitch, dt, 3);
-        hgt = ease(hgt, targetH, dt, 2);
-        heading = (heading + w.yaw * dt * 70) % (Math.PI * 2); // yaw torque → turn rate
-        e.enqueue({ type: 'input', axis: 4, value: pitchA });
-        e.enqueue({ type: 'input', axis: 5, value: heading });
-        e.enqueue({ type: 'input', axis: 6, value: rollA });
-        e.enqueue({ type: 'input', axis: 7, value: hgt });
+        // attitude targets: right-heavy banks, front-heavy pitches (same mapping
+        // as the Three.js view); the controller leans the real body to these.
+        const pitchT = clamp(w.pitch * 18, -0.45, 0.45);
+        const rollT = clamp(-w.roll * 18, -0.45, 0.45);
+        const yawRateT = clamp(w.yaw * 60, -1.5, 1.5); // rad/s
+        // altitude setpoint: lift vs weight raises/lowers it; below REST_Y commits
+        // to a landing (the static table stops the descent for real).
+        const targetH = clamp(HOVER_Y + (w.thrust - w.weight) * 0.6, -0.2, 1.9);
+        e.enqueue({ type: 'input', axis: 4, value: pitchT });
+        e.enqueue({ type: 'input', axis: 5, value: rollT });
+        e.enqueue({ type: 'input', axis: 6, value: yawRateT });
+        e.enqueue({ type: 'input', axis: 7, value: targetH });
       }
     }
     raf = requestAnimationFrame(flight);
@@ -242,7 +246,7 @@ export function init3D(model, container) {
       sizeCanvas();
       if (e.ready) loadAll(e, scene); else e.pending = scene;
       e.setAutoplay(true);
-      lastNorm.fill(NaN); lastTs = 0; // re-send inputs after a (re)mount
+      lastNorm.fill(NaN); heading = 0; // re-send inputs after a (re)mount
       if (!raf) raf = requestAnimationFrame(flight);
     },
     stop() { e.setAutoplay(false); if (raf) { cancelAnimationFrame(raf); raf = 0; } },
