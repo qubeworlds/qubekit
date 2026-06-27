@@ -41,11 +41,12 @@ const G = {
   armLen: 0.55,    // arm (the "string") length, pivot → ball centre
   ballR: 0.10,     // ball radius
   yPivot: 1.00,    // top ring height (the ring the arms hang from)
-  gearY: 0.16,     // bevel-drive corner height
-  gearThick: 0.10, // bottom-gear thickness (its top = gearY + gearThick/2 = 0.21)
+  cornerY: 0.07,   // where the two bevel cones meet (apex-to-apex), on the axis
+  bevelLen: 0.15,  // bevel pitch-cone height == base radius → a 45° miter cone,
+                   // so the vertical + horizontal gears sit at a true 90°
   spindleTop: 1.06,
-  spindleBot: 0.21, // FLUSH with the bottom gear's top — the spindle rises FROM
-                    // the gear and never runs down over it (the reported bug)
+  spindleBot: 0.22, // = cornerY + bevelLen: the spindle rises FROM the top of the
+                    // vertical bevel gear and never runs down over it (the bug)
   seatY: 0.90,     // fixed upper spring seat
   springMinor: 0.02,
   springCoils: 7,  // spring drawn as this many rings the skill bunches/spreads
@@ -72,8 +73,7 @@ function collarHeight(th) {
 function buildGovernorScene() {
   const ents = [];
   const E = (o) => ents.push(o);
-  const vRp = 0.014 * 16 / 2; // bottom (spindle) gear pitch radius
-  const hRp = 0.014 * 14 / 2; // belt-shaft gear pitch radius
+  const cy = G.cornerY, bl = G.bevelLen, pulleyX = 0.50;
   const h0 = collarHeight(0);
 
   // base pedestal (static, doesn't spin) — grounds the spindle + belt shaft.
@@ -92,21 +92,29 @@ function buildGovernorScene() {
   E({ name: 'seat', geometry: { kind: 'torus', majorRadius: 0.10, minorRadius: 0.022, majorSegments: 32, minorSegments: 12 },
     transform: { position: [0, G.seatY, 0] }, material: steel([0.66, 0.70, 0.76]) });
 
-  // --- bottom bevel-style right-angle drive (both gears visibly turn) ---------
-  // vertical spindle gear (axis +Y) — the "gear in the bottom"; spun by the skill.
-  E({ name: 'vgear', geometry: { kind: 'gear', module: 0.014, teeth: 16, thickness: G.gearThick, boreRadius: 0.03 },
-    transform: { position: [0, G.gearY, 0] }, material: brass() });
-  // horizontal belt-shaft gear (axis +X): tip the +Y gear axis to +X with
-  // rotation.z = -π/2; the skill keeps the tip and adds the spin.
-  E({ name: 'hgear', geometry: { kind: 'gear', module: 0.014, teeth: 14, thickness: 0.09, boreRadius: 0.025 },
-    transform: { position: [vRp, G.gearY, 0], rotation: [0, 0, -Math.PI / 2] }, material: brass() });
-  E({ name: 'shaft', geometry: { kind: 'cylinder', radius: 0.02, height: 0.36 },
-    transform: { position: [0.29, G.gearY, 0], rotation: [0, 0, -Math.PI / 2] }, material: bronze() });
+  // --- bottom bevel right-angle drive ----------------------------------------
+  // A real miter pair: two 45° pitch CONES meeting apex-to-apex at the corner
+  // (their axes the spindle's +Y and the belt shaft's +X — a true 90°), each
+  // capped by a thin toothed disc that carries the visible teeth and the spin.
+  // The cones (rotationally symmetric) stay put; the skill turns the discs.
+  // vertical cone on the spindle: apex DOWN at the corner, base (radius=bl) up.
+  E({ name: 'vcone', geometry: { kind: 'cylinder', bottomRadius: 0, topRadius: bl, height: bl },
+    transform: { position: [0, cy + bl / 2, 0] }, material: brass() });
+  E({ name: 'vgear', geometry: { kind: 'gear', module: 2 * bl / 18, teeth: 18, thickness: 0.025, boreRadius: 0.03 },
+    transform: { position: [0, cy + bl, 0] }, material: brass() });
+  // horizontal cone on the belt shaft: tip the +Y axis to +X (rotation.z = -π/2)
+  // so its apex points back at the corner; the disc carries the teeth + spin.
+  E({ name: 'hcone', geometry: { kind: 'cylinder', bottomRadius: 0, topRadius: bl, height: bl },
+    transform: { position: [bl / 2, cy, 0], rotation: [0, 0, -Math.PI / 2] }, material: brass() });
+  E({ name: 'hgear', geometry: { kind: 'gear', module: 2 * bl / 16, teeth: 16, thickness: 0.025, boreRadius: 0.025 },
+    transform: { position: [bl, cy, 0], rotation: [0, 0, -Math.PI / 2] }, material: brass() });
+  E({ name: 'shaft', geometry: { kind: 'cylinder', radius: 0.02, height: pulleyX - bl },
+    transform: { position: [(bl + pulleyX) / 2, cy, 0], rotation: [0, 0, -Math.PI / 2] }, material: bronze() });
   E({ name: 'pulley', geometry: { kind: 'cylinder', radius: 0.075, height: 0.05 },
-    transform: { position: [0.47, G.gearY, 0], rotation: [0, 0, -Math.PI / 2] }, material: steel([0.42, 0.47, 0.55]) });
+    transform: { position: [pulleyX, cy, 0], rotation: [0, 0, -Math.PI / 2] }, material: steel([0.42, 0.47, 0.55]) });
   // a peg on the pulley rim the skill orbits — shows the belt shaft turning.
   E({ name: 'peg', geometry: { kind: 'box', half: [0.012, 0.03, 0.012] },
-    transform: { position: [0.47, G.gearY + 0.075, 0] }, material: brass() });
+    transform: { position: [pulleyX, cy + 0.075, 0] }, material: brass() });
 
   // --- sliding collar (the second ring) + the spring it compresses ------------
   E({ name: 'collar', geometry: { kind: 'tube', innerRadius: 0.05, outerRadius: G.collarOuter, height: G.collarH },
@@ -145,7 +153,8 @@ function buildSkill() {
   const seatBot = G.seatY - G.springMinor;
   return `
 var PIVR=${G.pivR}, ARM=${G.armLen}, YP=${G.yPivot}, AAT=${G.rodAttach},
-    RC=${G.rc}, LROD=${G.rodLen}, CH=${G.collarH}, SEATBOT=${seatBot}, N=${N};
+    RC=${G.rc}, LROD=${G.rodLen}, CH=${G.collarH}, SEATBOT=${seatBot}, N=${N},
+    CY=${G.cornerY}, PULX=0.50;
 function cl(v,lo,hi){return v<lo?lo:(v>hi?hi:v);}
 function rx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
 function ry(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
@@ -162,7 +171,7 @@ onPreStep(function (dt) {
   var vg = world.get('vgear'); if (vg) vg.transform.rotation = { x: 0, y: phi, z: 0 };
   var hg = world.get('hgear'); if (hg) hg.transform.rotation = zyx(mul(rx(-phi), rz(-Math.PI / 2)));
   var pg = world.get('peg'); if (pg) {
-    pg.transform.position = { x: 0.47, y: 0.16 + 0.075 * Math.cos(-phi), z: 0.075 * Math.sin(-phi) };
+    pg.transform.position = { x: PULX, y: CY + 0.075 * Math.cos(-phi), z: 0.075 * Math.sin(-phi) };
     pg.transform.rotation = { x: -phi, y: 0, z: 0 };
   }
 
@@ -222,7 +231,24 @@ export function init3D(model, container) {
   const scene = buildGovernorScene();
   const skill = buildSkill();
   let raf = 0;
-  let spinPhase = 0, thetaDisp = model.state().theta, last = 0;
+  let spinPhase = 0, last = 0;
+
+  // Real flyball dynamics: integrate the arm angle θ from the LIVE moment balance
+  // — centrifugal (the turning force) vs gravity + the spring fed back through the
+  // sleeve — the SAME moment the solver (mechanism.js `governor`) bisects for its
+  // equilibrium. So spinning faster genuinely flings the balls up (and they fall
+  // when it slows), settling at the solver's steady state. SI units (mm → m).
+  const P = model.params, gravity = P.gravity ?? 9.81;
+  const L = P.armLength / 1000, ePiv = P.pivotRadius / 1000, bArm = P.sleeveArm / 1000, mBall = P.ballMass;
+  const I = 3 * mBall * L * L, Cdamp = 0.022; // effective inertia + damping (tuned: lively, no overshoot)
+  const moment = (th, w) => {
+    const r = ePiv + L * Math.sin(th);
+    const Mc = mBall * w * w * r * (L * Math.cos(th));        // centrifugal (turning force)
+    const Mg = mBall * gravity * (L * Math.sin(th));          // gravity (restoring)
+    const S = P.springPreload + P.springRate * (bArm * Math.sin(th)); // spring force on the sleeve
+    return Mc - Mg - S * (bArm * Math.cos(th));               // net moment about the pivot
+  };
+  let theta = model.state().theta, thetaVel = 0;
 
   const sizeCanvas = () => {
     const w = container.clientWidth, h = container.clientHeight;
@@ -235,16 +261,23 @@ export function init3D(model, container) {
   const reSync = () => { sizeCanvas(); window.dispatchEvent(new Event('resize')); };
   const onVisible = () => { if (document.visibilityState === 'visible') requestAnimationFrame(reSync); };
 
-  // Per frame: integrate the spindle phase from the true ω, ease θ toward the
-  // solver equilibrium, and hand both to the in-engine placer via input axes.
+  // Per frame: integrate the spindle phase from the true ω, advance the real θ
+  // dynamics (sub-stepped for stability), clamp θ to its physical travel, and
+  // hand both to the in-engine placer via input axes.
   const drive = (t) => {
     if (e.ready) {
       if (!last) last = t;
       const dt = Math.min(0.05, (t - last) / 1000); last = t;
       spinPhase += model.omega * dt;                       // true spindle/shaft rate
-      thetaDisp += (model.state().theta - thetaDisp) * Math.min(1, dt * 6); // ease
+      const sub = 4, hh = dt / sub;
+      for (let k = 0; k < sub; k++) {
+        const acc = (moment(theta, model.omega) - Cdamp * thetaVel) / I;
+        thetaVel += acc * hh; theta += thetaVel * hh;
+        if (theta < 0) { theta = 0; if (thetaVel < 0) thetaVel = 0; }            // ball rest
+        if (theta > P.thetaMax) { theta = P.thetaMax; if (thetaVel > 0) thetaVel = 0; } // sleeve stop
+      }
       e.enqueue({ type: 'input', axis: 0, value: spinPhase });
-      e.enqueue({ type: 'input', axis: 1, value: thetaDisp });
+      e.enqueue({ type: 'input', axis: 1, value: theta });
     }
     raf = requestAnimationFrame(drive);
   };
