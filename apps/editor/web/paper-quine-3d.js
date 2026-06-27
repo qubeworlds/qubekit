@@ -12,31 +12,34 @@
 import { bootEngine } from './quine-3d.js';
 
 // A few QubeKit-flavoured objects under the sheet, so peeling it back reveals
-// something (the demo's payoff). Each is a STATIC rigid body so the soft body
-// drapes over and rests on it; the cloth starts flat just above the tallest.
+// something (the demo's payoff). They sit in a SHORT, TIGHT cluster near the
+// middle so the sheet domes over them as one mound instead of sagging between
+// scattered tall supports (which let corners poke through). Rounded/low tops and
+// generous collider margins keep the thin cloth from being pierced. Each is a
+// STATIC rigid body the soft body drapes over.
 function revealObjects(E) {
+  // Each collider is sized to FULLY ENCLOSE the render mesh (the cloth rests on
+  // the collider, so its flat top must sit at/above the render's top, with a hair
+  // of margin); combined with the render shell, the sheet never reveals a corner.
   const stat = (half) => ({ motion: 'static', collider: { kind: 'box', halfExtents: half } });
-  // a brass gear lying flat
-  E({ name: 'r_gear', geometry: { kind: 'gear', module: 0.012, teeth: 14, pressureAngle: 0.349, thickness: 0.05, boreRadius: 0.02 },
-    transform: { position: [-0.16, 0.025, 0.05], rotation: [Math.PI / 2, 0, 0] },
-    body: stat([0.11, 0.06, 0.11]),
+  // a brass gear lying FLAT (gears are flat by default — no rotation), top ~0.03
+  E({ name: 'r_gear', geometry: { kind: 'gear', module: 0.01, teeth: 14, pressureAngle: 0.349, thickness: 0.03, boreRadius: 0.018 },
+    transform: { position: [0.0, 0.016, 0.0] },
+    body: stat([0.08, 0.022, 0.08]), // box top 0.038 ≥ gear top ~0.031
     material: { color: [0.84, 0.66, 0.28, 1], metallic: 0.8, roughness: 0.35 } });
-  // a short stack of two coloured beams (crossed)
-  E({ name: 'r_beamA', geometry: { kind: 'box', half: [0.16, 0.02, 0.035] },
-    transform: { position: [0.12, 0.02, -0.04] }, body: stat([0.16, 0.02, 0.035]),
-    material: { color: [0.27, 0.5, 0.86, 1], metallic: 0.1, roughness: 0.5 } });
-  E({ name: 'r_beamB', geometry: { kind: 'box', half: [0.035, 0.02, 0.15] },
-    transform: { position: [0.14, 0.06, -0.02] }, body: stat([0.035, 0.02, 0.15]),
-    material: { color: [0.9, 0.42, 0.3, 1], metallic: 0.1, roughness: 0.5 } });
-  // an axle stub
-  E({ name: 'r_axle', geometry: { kind: 'cylinder', radius: 0.02, height: 0.16, segments: 20 },
-    transform: { position: [0.02, 0.03, 0.2], rotation: [0, 0, Math.PI / 2] },
-    body: stat([0.09, 0.03, 0.03]),
-    material: { color: [0.6, 0.62, 0.68, 1], metallic: 0.7, roughness: 0.4 } });
-  // a round knob
-  E({ name: 'r_knob', geometry: { kind: 'sphere', radius: 0.05, rings: 14, segments: 22 },
-    transform: { position: [-0.06, 0.05, -0.18] }, body: { motion: 'static', collider: { kind: 'sphere', radius: 0.05 } },
+  // a low rounded knob (the tallest item, a gentle dome the cloth tents over)
+  E({ name: 'r_knob', geometry: { kind: 'sphere', radius: 0.032, rings: 16, segments: 24 },
+    transform: { position: [0.1, 0.02, 0.085] }, body: { motion: 'static', collider: { kind: 'sphere', radius: 0.04 } },
     material: { color: [0.45, 0.78, 0.5, 1], metallic: 0.2, roughness: 0.45 } });
+  // a short flat beam (axis-aligned so its box collider encloses it exactly)
+  E({ name: 'r_beamA', geometry: { kind: 'box', half: [0.11, 0.018, 0.028] },
+    transform: { position: [-0.05, 0.018, 0.07] }, body: stat([0.115, 0.034, 0.033]),
+    material: { color: [0.27, 0.5, 0.86, 1], metallic: 0.1, roughness: 0.5 } });
+  // a small axle lying flat along X (capsule render + an enclosing box collider)
+  E({ name: 'r_axle', geometry: { kind: 'capsule', radius: 0.022, height: 0.12, segments: 18, rings: 6 },
+    transform: { position: [-0.02, 0.022, -0.1], rotation: [0, 0, Math.PI / 2] },
+    body: stat([0.085, 0.027, 0.027]), // half-len 0.06 + r 0.022 ≈ 0.082; top 0.049 ≥ 0.044
+    material: { color: [0.6, 0.62, 0.68, 1], metallic: 0.7, roughness: 0.4 } });
 }
 
 function buildClothScene(p) {
@@ -58,7 +61,7 @@ function buildClothScene(p) {
       kind: 'cloth', nx: p.nx, nz: p.nz, spacing: p.spacing, iterations: p.iterations,
       pin: p.pin, handleI: p.handleI, handleJ: p.handleJ,
     },
-    transform: { position: [0, 0.16, 0] },
+    transform: { position: [0, 0.1, 0] },
     material: { color: p.color, metallic: 0.0, roughness: 0.78 } });
 
   E({ name: 'sun', light: { kind: 'directional', direction: [-0.35, -1.0, -0.45], intensity: 1.2, castShadows: true } });

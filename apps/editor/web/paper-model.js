@@ -12,13 +12,13 @@
 const MODES = {
   paper: {
     label: 'Paper',
-    nx: 22, nz: 22, spacing: 0.05, iterations: 10,
+    nx: 22, nz: 22, spacing: 0.038, iterations: 12,
     color: [0.93, 0.90, 0.82, 1],          // warm off-white stock
-    note: 'a stiff sheet — coarse grid, few solver iterations, holds its crease',
+    note: 'a stiff sheet — more solver iterations, holds its crease',
   },
   fabric: {
     label: 'Fabric',
-    nx: 26, nz: 26, spacing: 0.042, iterations: 4,
+    nx: 26, nz: 26, spacing: 0.032, iterations: 6,
     color: [0.62, 0.20, 0.26, 1],          // deep red cloth
     note: 'a soft drape — finer grid, fewer constraints met, folds heavily',
   },
