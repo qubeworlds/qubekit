@@ -49,6 +49,7 @@ const G = {
                     // vertical bevel gear and never runs down over it (the bug)
   seatY: 0.90,     // fixed upper spring seat
   springMinor: 0.02,
+  springR: 0.075,  // spring coil radius (the rings + the winding wire-seam sit here)
   springCoils: 7,  // spring drawn as this many rings the skill bunches/spreads
   collarH: 0.12,   // collar (sliding sleeve) height
   collarOuter: 0.11,
@@ -130,8 +131,13 @@ function buildGovernorScene() {
   const collarTop0 = h0 + G.collarH / 2, seatBot = G.seatY - G.springMinor;
   for (let k = 0; k < G.springCoils; k++) {
     const yk = collarTop0 + (seatBot - collarTop0) * ((k + 0.5) / G.springCoils);
-    E({ name: 'spring' + k, geometry: { kind: 'torus', majorRadius: 0.075, minorRadius: G.springMinor, majorSegments: 28, minorSegments: 10 },
+    E({ name: 'spring' + k, geometry: { kind: 'torus', majorRadius: G.springR, minorRadius: G.springMinor, majorSegments: 28, minorSegments: 10 },
       transform: { position: [0, yk, 0] }, material: springMat() });
+    // a wire-seam bead on each coil at one azimuth — the skill carries the seam
+    // AROUND with the spin, so the coil visibly winds (a symmetric ring can't show
+    // the rotation; this seam makes the turning vertical axis read in the middle).
+    E({ name: 'seam' + k, geometry: { kind: 'sphere', radius: G.springMinor * 1.7, rings: 8, segments: 10 },
+      transform: { position: [G.springR, yk, 0] }, material: brass() });
   }
 
   // --- arms (the "strings"), balls, and the lower links -----------------------
@@ -162,7 +168,7 @@ function buildSkill() {
   return `
 var PIVR=${G.pivR}, ARM=${G.armLen}, YP=${G.yPivot}, AAT=${G.rodAttach},
     RC=${G.rc}, LROD=${G.rodLen}, CH=${G.collarH}, SEATBOT=${seatBot}, N=${N},
-    CY=${G.cornerY}, PULX=0.50;
+    CY=${G.cornerY}, PULX=0.50, SPRINGR=${G.springR};
 function cl(v,lo,hi){return v<lo?lo:(v>hi?hi:v);}
 function rx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
 function ry(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
@@ -194,11 +200,13 @@ onPreStep(function (dt) {
   var hh = (YP - AAT * cth) - Math.sqrt(Math.max(0, LROD * LROD - gap * gap));
   var col = world.get('collar'); if (col) col.transform.position = { x: 0, y: hh, z: 0 };
 
-  // spring: bunch the rings between the (rising) collar top and the fixed seat.
+  // spring: bunch the rings between the (rising) collar top and the fixed seat,
+  // and carry each coil's wire-seam bead AROUND with the spin so the coil winds.
   var collarTop = hh + CH / 2;
   for (var k = 0; k < N; k++) {
-    var r = world.get('spring' + k); if (!r) continue;
-    r.transform.position = { x: 0, y: collarTop + (SEATBOT - collarTop) * ((k + 0.5) / N), z: 0 };
+    var yk = collarTop + (SEATBOT - collarTop) * ((k + 0.5) / N);
+    var r = world.get('spring' + k); if (r) r.transform.position = { x: 0, y: yk, z: 0 };
+    var sm = world.get('seam' + k); if (sm) sm.transform.position = { x: SPRINGR * cphi, y: yk, z: -SPRINGR * sphi };
   }
 
   // arms (strings), balls, links — one mirrored pair. Everything is computed in
