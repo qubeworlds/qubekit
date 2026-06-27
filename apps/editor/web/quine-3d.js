@@ -202,12 +202,27 @@ export function init3D(model, container) {
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+  // Resize the drawing buffer to the container. CRITICAL: bail when the container
+  // has no size — when the tab is hidden (display:none) or the page is backgrounded
+  // its clientWidth/Height read 0, and sizing to 0/1 leaves a 1px canvas that
+  // persists ("shrinks to a small rectangle" on tab return). We only ever resize
+  // to a real size, and re-sync (below) when the view becomes visible again.
   const sizeCanvas = () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    if (w < 2 || h < 2) return; // hidden / backgrounded — leave the buffer intact
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
-    e.canvas.width = Math.round(w * dpr);
-    e.canvas.height = Math.round(h * dpr);
+    const cw = Math.round(w * dpr), ch = Math.round(h * dpr);
+    if (e.canvas.width !== cw || e.canvas.height !== ch) {
+      e.canvas.width = cw;
+      e.canvas.height = ch;
+    }
   };
+  // Re-sync whenever the container actually changes size (orientation flip, layout
+  // reflow) or the page comes back to the foreground. A backgrounded tab can resize
+  // the GL canvas behind our back; this re-asserts the right size on return.
+  let ro = null;
+  const reSync = () => { sizeCanvas(); window.dispatchEvent(new Event('resize')); };
+  const onVisible = () => { if (document.visibilityState === 'visible') requestAnimationFrame(reSync); };
 
   // Per frame: push each slider's throttle (axes 0..3 — visual prop spin), then
   // turn the solver wrench into flight TARGETS the in-engine controller flies to.
@@ -250,13 +265,19 @@ export function init3D(model, container) {
       if (e.ready) loadAll(e, scene); else e.pending = scene;
       e.setAutoplay(true);
       lastNorm.fill(NaN); heading = 0; // re-send inputs after a (re)mount
+      if (!ro && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(reSync); ro.observe(container); }
+      document.addEventListener('visibilitychange', onVisible);
+      window.addEventListener('pageshow', reSync);
       if (!raf) raf = requestAnimationFrame(flight);
     },
     stop() { e.setAutoplay(false); if (raf) { cancelAnimationFrame(raf); raf = 0; } },
-    resize() { sizeCanvas(); window.dispatchEvent(new Event('resize')); },
+    resize() { reSync(); },
     dispose() {
       e.setAutoplay(false);
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (ro) { ro.disconnect(); ro = null; }
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', reSync);
       if (e.canvas.parentNode) e.canvas.parentNode.removeChild(e.canvas); // keep the engine; just detach
     },
   };

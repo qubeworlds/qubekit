@@ -9,8 +9,8 @@
       [hidden] { display: none !important; }
       html, body { margin: 0; min-height: 100%; background: #0f1115; color: #e5e7eb;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-      body { display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 14px; padding: 24px; box-sizing: border-box; min-height: 100vh; }
+      body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+        gap: 14px; padding: 14px 24px 28px; box-sizing: border-box; min-height: 100vh; }
       h1 { font-size: clamp(18px, 4vw, 26px); font-weight: 600; margin: 0; letter-spacing: 0.02em; }
       p.sub { margin: 0; max-width: 660px; text-align: center; color: #9ca3af;
         font-size: clamp(12px, 2.6vw, 14px); line-height: 1.5; }
@@ -25,14 +25,20 @@
       label.lock, label.speed { display: inline-flex; align-items: center; gap: 8px; color: #cbd5e1;
         font-size: clamp(11px, 2.4vw, 13px); cursor: pointer; user-select: none; }
       label.lock input { width: 15px; height: 15px; accent-color: #f87171; }
-      label.speed input { accent-color: #3b82f6; width: 130px; }
+      label.speed input { accent-color: #3b82f6; width: clamp(150px, 40vw, 240px); }
       #sliderval { color: #93c5fd; min-width: 64px; }
-      .rpm4 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
-      .rpm4 .r { display: inline-flex; align-items: center; gap: 7px; color: #cbd5e1;
-        font-size: clamp(10px, 2.2vw, 12px); }
-      .rpm4 .r span.lab { min-width: 34px; color: #9aa6bd; }
-      .rpm4 .r input { width: 96px; }
-      .rpm4 .r span.val { min-width: 52px; color: #93c5fd; text-align: right; }
+      /* A dragged slider must own the touch — without this iPad Safari hands the
+         gesture to page scroll mid-drag, so the thumb "sticks". Taller thumbs +
+         more room make them comfortable to grab in portrait. */
+      input[type='range'] { touch-action: none; height: 28px; }
+      .rpm4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; width: min(92vw, 620px); }
+      .rpm4 .r { display: flex; align-items: center; gap: 10px; color: #cbd5e1;
+        font-size: clamp(11px, 2.4vw, 13px); }
+      .rpm4 .r span.lab { min-width: 36px; color: #9aa6bd; }
+      .rpm4 .r input { flex: 1 1 auto; min-width: 0; }
+      .rpm4 .r span.val { min-width: 56px; color: #93c5fd; text-align: right; }
+      /* Portrait / narrow: one fader per row so each gets the full width. */
+      @media (max-width: 620px) { .rpm4 { grid-template-columns: 1fr; } }
       .rpm4 .r.ccw input { accent-color: #6f9eff; } /* blue = CCW */
       .rpm4 .r.cw input { accent-color: #ef4444; }  /* red = CW */
       .view { width: min(92vw, 900px); }
