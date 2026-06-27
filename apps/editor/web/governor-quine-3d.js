@@ -177,7 +177,7 @@ function mul(P,Q){var R=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=
 function zyx(R){var y=Math.asin(cl(-R[2][0],-1,1));return {x:Math.atan2(R[2][1],R[2][2]),y:y,z:Math.atan2(R[1][0],R[0][0])};}
 
 onPreStep(function (dt) {
-  var phi = input(0), th = input(1);
+  var phi = input(2), th = input(1); // axis 2 = spin phase (axis 0 is clamped to [-1,1])
   var cphi = Math.cos(phi), sphi = Math.sin(phi), sth = Math.sin(th), cth = Math.cos(th);
 
   // bottom drive: spin the spindle gear about Y, the belt gear about its (tipped
@@ -290,7 +290,11 @@ export function init3D(model, container) {
     if (e.ready) {
       if (!last) last = t;
       const dt = Math.min(0.05, (t - last) / 1000); last = t;
-      spinPhase += model.omega * dt;                       // true spindle/shaft rate
+      // true spindle/shaft rate, wrapped to [0, 2π): the phase grows every frame,
+      // so it must NOT ride a clamped axis (the engine clamps axis 0 to [-1,1] —
+      // that froze the spin after a few frames). Wrapping also keeps float
+      // precision over a long session. Fed on axis 2 (unclamped) below.
+      spinPhase = (spinPhase + model.omega * dt) % (2 * Math.PI);
       const sub = 4, hh = dt / sub;
       for (let k = 0; k < sub; k++) {
         const acc = (moment(theta, model.omega) - Cdamp * thetaVel) / I;
@@ -298,7 +302,7 @@ export function init3D(model, container) {
         if (theta < 0) { theta = 0; if (thetaVel < 0) thetaVel = 0; }            // ball rest
         if (theta > P.thetaMax) { theta = P.thetaMax; if (thetaVel > 0) thetaVel = 0; } // sleeve stop
       }
-      e.enqueue({ type: 'input', axis: 0, value: spinPhase });
+      e.enqueue({ type: 'input', axis: 2, value: spinPhase }); // axis 2: unclamped (axis 0 is the clamped keyboard axis)
       e.enqueue({ type: 'input', axis: 1, value: theta });
     }
     raf = requestAnimationFrame(drive);
