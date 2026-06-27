@@ -52,6 +52,37 @@ let key = 'train', model, v2, v3, tab = '2d';
 
 const sliderText = (c, v) => `${v}${c.unit ? ' ' + c.unit : ''}`;
 
+// Make a range input reliably draggable by touch. iOS Safari's native range-thumb
+// hit-testing is flaky — a touch that starts a hair off the thumb is handed to
+// page scroll, so the drag "misses". Instead we drive the value straight from the
+// pointer's X and grab the gesture with setPointerCapture, so a touch ANYWHERE on
+// the track owns it and the outer page can't scroll mid-drag. Pairs with the CSS
+// `touch-action: none`. (Also gives click/tap-to-set on desktop.)
+function bindRangeDrag(input) {
+  let active = false;
+  const setFromX = (clientX) => {
+    const r = input.getBoundingClientRect();
+    if (r.width <= 0) return;
+    const t = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    const min = Number(input.min), max = Number(input.max), step = Number(input.step) || 1;
+    let v = Math.round((min + t * (max - min)) / step) * step;
+    v = Math.max(min, Math.min(max, v));
+    if (String(v) !== input.value) { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); }
+  };
+  input.addEventListener('pointerdown', (e) => {
+    active = true;
+    try { input.setPointerCapture(e.pointerId); } catch (_) {}
+    setFromX(e.clientX); e.preventDefault();
+  });
+  input.addEventListener('pointermove', (e) => { if (active) { setFromX(e.clientX); e.preventDefault(); } });
+  const end = (e) => { active = false; try { input.releasePointerCapture(e.pointerId); } catch (_) {} };
+  input.addEventListener('pointerup', end);
+  input.addEventListener('pointercancel', end);
+  input.addEventListener('lostpointercapture', () => { active = false; });
+  // Belt-and-braces: while dragging, swallow touchmove so the page never scrolls.
+  input.addEventListener('touchmove', (e) => { if (active) e.preventDefault(); }, { passive: false });
+}
+
 // Build the drone's four RPM sliders from model.sliders / model.values. Each row
 // is coloured by spin direction (blue CCW / red CW) and drives model.setSlider(i).
 function buildRpm4() {
@@ -69,6 +100,7 @@ function buildRpm4() {
       out.textContent = `${model.values[i]} ${s.unit}`;
       facts.innerHTML = model.factsHTML();
     });
+    bindRangeDrag(inp);
     row.append(lab, inp, out); rpm4Ctl.appendChild(row);
   });
 }
@@ -127,6 +159,7 @@ el('slider').addEventListener('input', (e) => {
   el('sliderval').textContent = sliderText(model.sliderConfig, model.sliderValue);
   facts.innerHTML = model.factsHTML();
 });
+bindRangeDrag(el('slider')); // touch-reliable drag for the governor/arm speed slider
 
 const params = new URLSearchParams(location.search);
 key = MECH[params.get('mech')] ? params.get('mech') : 'train';
