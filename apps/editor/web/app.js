@@ -16,6 +16,7 @@ import { init3D as arm3D } from './arm-3d.js';
 import { buildDrone } from './drone-model.js';
 import { init2D as drone2D } from './drone-2d.js';
 import { init3D as drone3D } from './drone-3d.js';
+import { init3D as droneQuine3D } from './quine-3d.js';
 
 const MECH = {
   train: {
@@ -33,6 +34,13 @@ const MECH = {
   drone: {
     label: 'Drone', has3D: true, control: 'rpm4',
     build: () => buildDrone(), v2: drone2D, v3: drone3D,
+  },
+  // Same drone (model + 2D schematic + RPM sliders), but the 3D tab renders with
+  // the real Quine wasm engine instead of Three.js — the side-by-side that shows
+  // the airframe is fully expressible as a Quine scene (primitives + parenting).
+  'drone-quine': {
+    label: 'Drone (Quine engine)', has3D: true, control: 'rpm4',
+    build: () => buildDrone(), v2: drone2D, v3: droneQuine3D,
   },
 };
 
