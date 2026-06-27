@@ -41,6 +41,14 @@
       @media (max-width: 620px) { .rpm4 { grid-template-columns: 1fr; } }
       .rpm4 .r.ccw input { accent-color: #6f9eff; } /* blue = CCW */
       .rpm4 .r.cw input { accent-color: #ef4444; }  /* red = CW */
+      /* cloth (paper/fabric): a material toggle + a Lift slider */
+      .cloth { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+      .cloth .seg { display: inline-flex; border: 1px solid #2a3344; border-radius: 9px; overflow: hidden; }
+      .cloth .seg button { background: #0d1117; color: #cbd5e1; border: 0; padding: 7px 16px; font: inherit; cursor: pointer; }
+      .cloth .seg button[aria-pressed='true'] { background: #1d2a3a; color: #fff; }
+      .cloth label.lift { display: inline-flex; align-items: center; gap: 8px; color: #cbd5e1; font-size: clamp(11px, 2.4vw, 13px); }
+      .cloth label.lift input { accent-color: #34d399; width: clamp(150px, 40vw, 240px); }
+      .cloth .liftval { color: #6ee7b7; min-width: 44px; }
       .view { width: min(92vw, 900px); }
       canvas#c2d { width: 100%; height: auto; display: block; }
       #view3d { height: min(58vw, 540px); border-radius: 8px; overflow: hidden; }
@@ -56,7 +64,8 @@
       Every mechanism here is generated and solved by <code>@qubekit/solver</code>:
       involute gears, a slider-crank steam engine, a centrifugal flyball
       governor, an articulated robot arm (inverse kinematics), and a quadcopter
-      (counter-rotating control mixer). Pick one from the menu.
+      (counter-rotating control mixer) — plus a paper / fabric sheet run as a real
+      Jolt <code>soft body</code> in the Quine engine. Pick one from the menu.
     </p>
     <div class="controls">
       <select id="mech" aria-label="mechanism">
@@ -64,6 +73,7 @@
         <option value="governor">Flyball governor</option>
         <option value="arm">Robot arm</option>
         <option value="drone">Drone</option>
+        <option value="paper">Paper / fabric</option>
       </select>
       <div class="tabs" role="group" aria-label="view">
         <button id="tab-2d" aria-pressed="true">2D</button>
@@ -72,11 +82,12 @@
       <label class="lock" id="ctl-lock"><input type="checkbox" id="lock" /> Lock (bridge gears 3 &amp; 4)</label>
       <label class="speed" id="ctl-slider" hidden><span id="slabel">Speed</span> <input type="range" id="slider" min="0" max="40" step="1" /> <span id="sliderval"></span></label>
       <div class="rpm4" id="ctl-rpm4" hidden></div>
+      <div class="cloth" id="ctl-cloth" hidden></div>
     </div>
     <div id="view2d" class="view"><canvas id="c2d" width="900" height="460"></canvas></div>
     <div id="view3d" class="view" hidden></div>
     <div id="facts">…</div>
-    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom · governor / arm / drone: drag the slider</div>
+    <div class="hint">2D: schematic · 3D: drag to orbit · pinch / scroll to zoom · governor / arm / drone / paper: drag the slider</div>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

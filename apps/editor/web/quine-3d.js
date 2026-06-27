@@ -253,13 +253,15 @@ function provideStone() {
 }
 
 // The engine is a single Emscripten module per page; boot it once, lazily.
+// Exported so sibling Quine views (e.g. the paper/fabric cloth) share the SAME
+// module — a second emscripten Module would fight over the one WebGL context.
 let engine = null;
-function bootEngine() {
+export function bootEngine() {
   if (engine) return engine;
   const canvas = document.createElement('canvas');
   canvas.id = 'quine-canvas';
   canvas.style.cssText = 'width:100%;height:100%;display:block;outline:none;touch-action:none';
-  const e = { canvas, ready: false, pending: null, skillLoaded: false };
+  const e = { canvas, ready: false, onReady: null };
   e.enqueue = (o) => { try { window.Module.ccall('quine_enqueue', null, ['string'], [JSON.stringify(o)]); } catch (_) {} };
   e.setAutoplay = (on) => { try { window.Module.ccall('quine_set_autoplay', null, ['number'], [on ? 1 : 0]); } catch (_) {} };
 
@@ -269,7 +271,7 @@ function bootEngine() {
     print: () => {}, printErr: () => {},
     onRuntimeInitialized() {
       e.ready = true;
-      if (e.pending) loadAll(e, e.pending);
+      if (e.onReady) e.onReady(); // generic: whichever view is active loads its scene
       e.setAutoplay(true);
       try { window.Module.ccall('quine_set_hud', null, ['number'], [0]); } catch (_) {}
     },
@@ -287,7 +289,10 @@ function loadAll(e, scene) {
   e.enqueue({ type: 'config', config: { preferences: { grid: false, gizmo: false } } });
   provideStone(); // register the stone PNG BEFORE the scene that references it
   e.enqueue({ type: 'scene', json: JSON.stringify(scene) });
-  if (!e.skillLoaded) { e.enqueue({ type: 'skill', code: DRONE_SKILL }); e.skillLoaded = true; }
+  // Always (re-)install the flight skill: a sibling view (the cloth) may have
+  // replaced the engine's single skill slot, so re-enqueuing on every load keeps
+  // the drone's controller authoritative when this view is the active one.
+  e.enqueue({ type: 'skill', code: DRONE_SKILL });
 }
 
 // Match the editor's 3D-view contract: init3D(model, container) -> view handle.
@@ -340,7 +345,7 @@ export function init3D(model, container) {
     start() {
       if (e.canvas.parentNode !== container) container.appendChild(e.canvas);
       sizeCanvas();
-      if (e.ready) loadAll(e, scene); else e.pending = scene;
+      if (e.ready) loadAll(e, scene); else e.onReady = () => loadAll(e, scene);
       e.setAutoplay(true);
       if (!ro && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(reSync); ro.observe(container); }
       document.addEventListener('visibilitychange', onVisible);
