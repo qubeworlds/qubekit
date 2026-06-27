@@ -81,11 +81,19 @@ function buildGovernorScene() {
     transform: { position: [0, -0.02, 0] }, material: dark() });
 
   // spindle — STARTS above the bottom gear so no tube ever runs over the gear.
-  E({ name: 'spindle', geometry: { kind: 'cylinder', radius: 0.03, height: G.spindleTop - G.spindleBot },
+  // A faceted (octagonal) shaft, not a smooth cylinder, so the VERTICAL AXIS is
+  // plainly seen to turn (the skill spins it): the turning vertical axis is what
+  // flings the balls up.
+  E({ name: 'spindle', geometry: { kind: 'prism', radius: 0.034, height: G.spindleTop - G.spindleBot, sides: 8 },
     transform: { position: [0, (G.spindleTop + G.spindleBot) / 2, 0] }, material: steel() });
   // the top ring the arms hang from + a spindle cap
   E({ name: 'topring', geometry: { kind: 'torus', majorRadius: G.pivR, minorRadius: 0.022, majorSegments: 40, minorSegments: 14 },
     transform: { position: [0, G.yPivot, 0] }, material: steel([0.66, 0.70, 0.76]) });
+  // rotating crosshead (spider) keyed to the spindle top — the two arms pivot on
+  // its ends, so it turns WITH the vertical axis. A spinning bar (unlike the
+  // symmetric ring/shaft) makes that rotation unmistakable.
+  E({ name: 'spider', geometry: { kind: 'box', half: [G.pivR + 0.02, 0.02, 0.022] },
+    transform: { position: [0, G.yPivot, 0] }, material: steel([0.80, 0.83, 0.88]) });
   E({ name: 'hubcap', geometry: { kind: 'cylinder', radius: 0.06, height: 0.03 },
     transform: { position: [0, G.spindleTop, 0] }, material: steel() });
   // fixed upper spring seat
@@ -174,6 +182,12 @@ onPreStep(function (dt) {
     pg.transform.position = { x: PULX, y: CY + 0.075 * Math.cos(-phi), z: 0.075 * Math.sin(-phi) };
     pg.transform.rotation = { x: -phi, y: 0, z: 0 };
   }
+
+  // the vertical axis turns: spin the faceted spindle + the crosshead the arms
+  // pivot on. This is the rotation (driven up from the right-hand shaft) whose
+  // centrifugal force flings the balls out.
+  var sp = world.get('spindle'); if (sp) sp.transform.rotation = { x: 0, y: phi, z: 0 };
+  var sd = world.get('spider'); if (sd) sd.transform.rotation = { x: 0, y: phi, z: 0 };
 
   // collar height from the RIGID lower link (rod length never stretches).
   var gap = PIVR + AAT * sth - RC;
