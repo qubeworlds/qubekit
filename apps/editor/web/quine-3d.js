@@ -147,6 +147,19 @@ function buildDroneScene() {
     }
   }
 
+  // Orientation labels via the engine's `text` primitive (an extruded vector
+  // font): "UP" on the top face, "DOWN" on the underside. The text mesh is built
+  // in the XY plane facing +Z, so we rotate ∓90° about X to lay it flat on each
+  // face. Parented to the body, they tip with it — a glance tells you the craft's
+  // attitude (and which way is up after it lands).
+  const LBL = [0.05, 0.06, 0.09, 1];
+  E({ name: 'lblUp', geometry: { kind: 'text', value: 'UP', height: 0.18, depth: 0.015, thickness: 0.022 },
+    transform: { position: [0, bodyH / 2 + 0.006, 0], rotation: [-Math.PI / 2, 0, 0] }, parent: { entity: 'body' },
+    material: { color: LBL, metallic: 0.0, roughness: 0.6 } });
+  E({ name: 'lblDown', geometry: { kind: 'text', value: 'DOWN', height: 0.15, depth: 0.015, thickness: 0.02 },
+    transform: { position: [0, -(bodyH / 2 + 0.006), 0], rotation: [Math.PI / 2, 0, 0] }, parent: { entity: 'body' },
+    material: { color: LBL, metallic: 0.0, roughness: 0.6 } });
+
   E({ name: 'sun', light: { kind: 'directional', direction: [-0.4, -1.0, -0.5], intensity: 1.15, castShadows: true } });
   E({ name: 'sky', environment: { sky: { zenith: [0.22, 0.36, 0.58], horizon: [0.60, 0.66, 0.72] }, ambient: { intensity: 0.6 } } });
   E({ name: 'camera', camera: { fovY: 0.7, controller: { kind: 'orbit', target: [0, 0.75, 0], distance: 4.8, yaw: 0.7, pitch: 0.40 } } });
@@ -238,14 +251,23 @@ export function init3D(model, container) {
       }
       if (typeof model.wrench === 'function') {
         const w = model.wrench();
+        // Only steer when there's enough lift to actually FLY. The body rests on a
+        // wide, flat footprint that tips past ~4°, so commanding a bank while it
+        // can't lift off would flip it onto its side and leave it stuck there. Gate
+        // attitude + yaw by lift-vs-weight: below ~hover the targets fade to 0, so a
+        // grounded craft sits level (and rights itself if it had tipped); it only
+        // banks once airborne. That's also how a real drone behaves — idle on the
+        // ground = level, not leaning on a throttle imbalance.
+        const liftRatio = w.weight > 0 ? w.thrust / w.weight : 0;
+        const authority = clamp((liftRatio - 0.85) / 0.25, 0, 1);
         // attitude targets: more thrust on a side lifts THAT side. The controller
         // drives the body's ZYX Euler, where +roll(e.z) lifts +X and +pitch maps to
         // nose-up, so roll takes the solver's sign directly (w.roll>0 = right-heavy
         // = right up). NB: opposite sign to the Three.js view, whose Z-roll
         // handedness is flipped — matching it here banked the wrong way.
-        const pitchT = clamp(w.pitch * 18, -0.45, 0.45);
-        const rollT = clamp(w.roll * 18, -0.45, 0.45);
-        const yawRateT = clamp(w.yaw * 60, -1.5, 1.5); // rad/s
+        const pitchT = clamp(w.pitch * 18, -0.45, 0.45) * authority;
+        const rollT = clamp(w.roll * 18, -0.45, 0.45) * authority;
+        const yawRateT = clamp(w.yaw * 60, -1.5, 1.5) * authority; // rad/s
         // altitude setpoint: lift vs weight raises/lowers it; below REST_Y commits
         // to a landing (the static table stops the descent for real).
         const targetH = clamp(HOVER_Y + (w.thrust - w.weight) * 0.6, -0.2, 1.9);
