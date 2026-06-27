@@ -56,18 +56,22 @@ var ANG  = [0, 0, 0, 0];
 var MAXW = 22.0; // rad/s at full throttle — fast but readable, not a strobe
 var BODYY = ${BODY_Y};
 
-// Apply R = Rz(r)·Ry(y)·Rx(p) to v — same composition as the engine's fromEulerZYX,
-// so a hub placed by this rides exactly where the (Euler-set) body carries it.
-function rotZYX(v, p, y, r) {
-  var cx=Math.cos(p), sx=Math.sin(p), cy=Math.cos(y), sy=Math.sin(y), cz=Math.cos(r), sz=Math.sin(r);
-  var x1=v[0],            y1=v[1]*cx - v[2]*sx, z1=v[1]*sx + v[2]*cx; // Rx
-  var x2=x1*cy + z1*sy,   y2=y1,                z2=-x1*sy + z1*cy;    // Ry
-  return [x2*cz - y2*sz,  x2*sz + y2*cz,        z2];                  // Rz
-}
+// 3x3 rotation helpers. The engine's transform.rotation setter consumes Euler in
+// ZYX order (fromEulerZYX → R = Rz·Ry·Rx), so we build the body attitude that way
+// and round-trip composed rotations back through toZYX for the setter.
+function matRx(a){var c=Math.cos(a),s=Math.sin(a);return [[1,0,0],[0,c,-s],[0,s,c]];}
+function matRy(a){var c=Math.cos(a),s=Math.sin(a);return [[c,0,s],[0,1,0],[-s,0,c]];}
+function matRz(a){var c=Math.cos(a),s=Math.sin(a);return [[c,-s,0],[s,c,0],[0,0,1]];}
+function mul(A,B){var R=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;for(var k=0;k<3;k++)s+=A[i][k]*B[k][j];R[i][j]=s;}return R;}
+function mv(R,v){return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2], R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2], R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];}
+// Extract ZYX Euler from R (inverse of fromEulerZYX) so a composed matrix can be
+// handed back to the Euler setter unchanged.
+function toZYX(R){var y=Math.asin(Math.max(-1,Math.min(1,-R[2][0])));return {x:Math.atan2(R[2][1],R[2][2]), y:y, z:Math.atan2(R[1][0],R[0][0])};}
 
 onPreStep(function (dt) {
   var pitch = input(4), yaw = input(5), roll = input(6);
   var hgt = input(7); if (hgt === 0) hgt = BODYY; // pre-arm default: sit at rest height
+  var Rb = mul(mul(matRz(roll), matRy(yaw)), matRx(pitch)); // body attitude
   var body = world.get('body');
   if (body) {
     body.transform.position = { x: 0, y: hgt, z: 0 };
@@ -77,9 +81,12 @@ onPreStep(function (dt) {
     ANG[i] = (ANG[i] + DIR[i] * input(i) * MAXW * dt) % 6.2831853;
     var h = world.get(HUBS[i]);
     if (!h) continue;
-    var w = rotZYX(OFF[i], pitch, yaw, roll);
-    h.transform.position = { x: w[0], y: hgt + w[1], z: w[2] };
-    h.transform.rotation = { x: pitch, y: yaw + ANG[i], z: roll };
+    // hub rides the body: position = body + Rb·offset; orientation = Rb·spin so the
+    // blade disc stays parallel to the airframe (spin about the body-local up axis,
+    // applied AFTER the tilt — not folded into the heading, which would precess it).
+    var p = mv(Rb, OFF[i]);
+    h.transform.position = { x: p[0], y: hgt + p[1], z: p[2] };
+    h.transform.rotation = toZYX(mul(Rb, matRy(ANG[i])));
   }
 });
 `;
