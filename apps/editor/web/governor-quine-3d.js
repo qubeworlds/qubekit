@@ -154,15 +154,11 @@ function buildGovernorScene() {
   E({ name: 'sun', light: { kind: 'directional', direction: [-0.4, -1.0, -0.5], intensity: 1.15, castShadows: true } });
   E({ name: 'sky', environment: { sky: { zenith: [0.20, 0.33, 0.55], horizon: [0.60, 0.66, 0.72] }, ambient: { intensity: 0.62 } } });
   E({ name: 'camera', camera: { fovY: 0.7, controller: { kind: 'orbit', target: [0, 0.55, 0], distance: 2.8, yaw: 0.7, pitch: 0.32 } } });
-  // fixedHz 64: step the sim at 64 Hz (above 60) and interpolate transforms to
-  // the display refresh, so the fast-spinning gears render as smoothly as the
-  // panel allows (and at full rate on 120 Hz iPads). The renderer's quaternion
-  // blend takes the short path, so the spindle's 2π phase-wrap doesn't flash.
-  // NOTE: this can't beat the wagon-wheel illusion on a 60 Hz panel — that's a
-  // function of the *display* rate (a browser can't render past it); the real
-  // cure for the "belt gear runs backward at high rpm" is fewer teeth / a slower
-  // gear (see hgear/vgear), not a higher sim rate.
-  return { schemaVersion: 1, name: 'governor', gravity: [0, -9.81, 0], fixedHz: 64, interpolate: true, entities: ents };
+  // fixedHz 64: step the sim at 64 Hz. No render interpolation — show the raw
+  // ticks, uncompensated. (The wagon-wheel illusion on the belt gear at high rpm
+  // is a function of the display refresh, not the sim rate; the real cure would
+  // be fewer teeth / a slower gear, not interpolation.)
+  return { schemaVersion: 1, name: 'governor', gravity: [0, -9.81, 0], fixedHz: 64, entities: ents };
 }
 
 // In-engine kinematic placer. Reads φ (axis 0, spindle spin phase) and θ (axis 1,
