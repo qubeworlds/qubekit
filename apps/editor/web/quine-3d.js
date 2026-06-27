@@ -1,6 +1,5 @@
-// Quine-engine 3D view for the drone — the same mechanism as `drone-3d.js`, but
-// rendered AND SIMULATED by the real **Quine** wasm engine (Jolt physics). Unlike
-// the Three.js view (which eases a kinematic attitude), this drone is a real
+// Quine-engine 3D view for the drone — the drone mechanism rendered AND SIMULATED
+// by the real **Quine** wasm engine (Jolt physics). The drone is a real
 // dynamic rigid body: gravity pulls it down, the four rotor thrusts push it up,
 // and it collides with — and lands on — the table. A self-stabilising flight
 // controller runs as an in-engine skill (altitude-hold + attitude PD + position
