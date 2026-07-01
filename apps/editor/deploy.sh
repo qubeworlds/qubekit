@@ -11,7 +11,7 @@
 # Then, from anywhere:
 #   apps/editor/deploy.sh
 #
-# Note: `qube pod deploy` is component-only in the pre-alpha CLI; a static-asset
+# Note: `qube deploy` is component-only in the pre-alpha CLI; a static-asset
 # Qube ships via this direct POST /api/deploy (the API accepts a component-less
 # bundle). Overrides: QUBEPODS_TOKEN (skip pods.toml), QUBEPODS_API, QUBEPODS_ENV.
 # Live URL: https://qubekit-editor.qubepod.app/

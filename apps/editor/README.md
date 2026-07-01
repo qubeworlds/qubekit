@@ -28,7 +28,7 @@ Then, after any change:
 ./deploy.sh          # zips web/ + qubepod.jsonc → POST /api/deploy → *.qubepod.app
 ```
 
-`qube pod deploy` is component-only in the pre-alpha CLI, so a static Qube ships
+`qube deploy` is component-only in the pre-alpha CLI, so a static Qube ships
 via the direct `POST /api/deploy` in `deploy.sh` (the API accepts a
 component-less bundle). The token lives in `~/.qube/pods.toml` (or
 `$QUBEPODS_TOKEN`) — **never commit it**; this repo is public.
