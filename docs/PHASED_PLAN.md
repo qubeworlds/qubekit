@@ -29,7 +29,7 @@ real engineering.
 >   QubeKit world, watching/driving the simulation, and basic interaction must
 >   work on a **mobile phone browser**.
 > - Consequences threaded through the phases: **WebGL2-default** rendering
->   (WebGPU opt-in, per `qubepods-examples` convention), a mobile GPU performance
+>   (WebGPU opt-in, per `qubits` convention), a mobile GPU performance
 >   budget (static-mesh **instancing + LOD** for many bricks — both currently
 >   missing in quine), **touch-first input** (drag-to-place/rotate, long-press,
 >   two-finger camera; picking driven by touch points not mouse pixels), a
