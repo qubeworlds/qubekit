@@ -19,6 +19,9 @@ import { init3D as droneQuine3D } from './quine-3d.js';
 import { buildPaper } from './paper-model.js';
 import { init2D as paper2D } from './paper-2d.js';
 import { init3D as paperQuine3D } from './paper-quine-3d.js';
+import { buildSo100 } from './so100-model.js';
+import { init2D as so1002D } from './so100-2d.js';
+import { init3D as so100Quine3D } from './so100-quine-3d.js';
 
 const MECH = {
   train: {
@@ -47,6 +50,13 @@ const MECH = {
   paper: {
     label: 'Paper / fabric', has3D: true, control: 'cloth',
     build: () => buildPaper(), v2: paper2D, v3: paperQuine3D,
+  },
+  // SO-100: the real SO-ARM100 assembly (examples/so100) — FK from the URDF
+  // joint table, six emulated STS3215s slewing after a scripted target
+  // trajectory. 3D tab is the Quine engine posing the links via a placer skill.
+  so100: {
+    label: 'SO-100 robot arm', has3D: true, control: 'slider',
+    build: () => buildSo100(), v2: so1002D, v3: so100Quine3D,
   },
 };
 
