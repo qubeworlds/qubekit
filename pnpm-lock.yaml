@@ -14,7 +14,18 @@ importers:
 
   packages/schema: {}
 
-  packages/sim: {}
+  packages/sim:
+    dependencies:
+      '@qubekit/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9
 
   packages/solver:
     devDependencies:

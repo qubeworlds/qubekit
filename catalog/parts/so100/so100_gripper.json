@@ -1,0 +1,48 @@
+{
+  "id": "so100_gripper",
+  "name": "SO-100 gripper",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/gripper.glb",
+  "mass": 0.0929859,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "horn",
+      "type": "axle_socket",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        1,
+        0
+      ],
+      "allowedCounterparts": [
+        "motor_out",
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    },
+    {
+      "id": "gripper_servo",
+      "type": "pin_socket",
+      "localPos": [
+        -0.0202,
+        -0.0244,
+        0
+      ],
+      "localAxis": [
+        0.000012654,
+        0,
+        -1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

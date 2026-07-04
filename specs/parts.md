@@ -76,6 +76,36 @@ These map 1:1 onto the generic Jolt joints quine exposes (A1). `gear` is the
 logical-only connection (electric/signal). The mapping table is the contract
 between this file and the engine's constraint API.
 
+## Servo parts
+
+A part with a `servo` field is a **position servo** (e.g. the SO-100's
+STS3215): commanded by the `servo.set` op (a target angle), not `motor.set`
+(a free-running speed).
+
+```jsonc
+{
+  "id": "so100_sts3215",
+  // …part fields as above…
+  "servo": {
+    "minAngle": -6.283185307,   // hardware envelope (rad)
+    "maxAngle": 6.283185307,
+    "maxVelocity": 4.6          // no-load slew cap (rad/s)
+  }
+}
+```
+
+This is the part's **hardware** envelope. Per-joint *software* limits (link
+interference is a property of a machine, not of the servo) live on the joint's
+Controller `params` (`minAngle`/`maxAngle`/`maxVelocity`) — they can narrow
+the hardware envelope, never widen it. Each tick, `@qubekit/sim` turns the
+target into a bounded drive speed feeding the same speed graph as motors.
+
+A servo's output port is a `motor_out` that may also list `axle_socket` in its
+`allowedCounterparts` — a keyed horn→link coupling with no intermediate axle
+(the SO-100 joints use exactly this). The compatibility table below is the
+default; a part's own `allowedCounterparts` is authoritative (`canMate`
+requires both directions to agree).
+
 ## Gear meshing (special case)
 
 Two `gear_center` parts whose pitch circles touch form a **gear-mesh

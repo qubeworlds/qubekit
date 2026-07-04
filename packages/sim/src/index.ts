@@ -5,3 +5,5 @@
 export { World } from './world';
 export { Sim, type ControllerHost, type TickState } from './sim';
 export { resolveAxleSpeeds, type AxleSpeeds, type Catalog } from './gears';
+export { stepServos, servoLimits } from './servo';
+export { linkTransforms } from './chain';

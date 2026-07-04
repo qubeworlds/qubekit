@@ -5,6 +5,7 @@
 
 import type { Assembly } from '@qubekit/schema';
 import { resolveAxleSpeeds, type AxleSpeeds, type Catalog } from './gears';
+import { stepServos } from './servo';
 import { World } from './world';
 
 /** Where motor speeds come from each tick. In Milestone A this is a JS stub or
@@ -32,6 +33,7 @@ export class Sim {
   /** Advance the simulation by `dt` seconds. Returns the resolved kinematics. */
   tick(dt: number): TickState {
     this.controllerHost?.step(dt, this.world);
+    stepServos(this.world, this.angles, dt);
     const resolved = resolveAxleSpeeds(this.world.assembly, this.world.catalog, this.world.motorSpeeds);
     for (const [id, w] of resolved.speeds) {
       this.angles.set(id, (this.angles.get(id) ?? 0) + w * dt);

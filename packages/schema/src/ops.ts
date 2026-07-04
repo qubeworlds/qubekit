@@ -36,6 +36,11 @@ export type ControllerSetOp = {
 };
 export type MotorSetOp = { op: 'motor.set'; part: number; speed: number };
 
+/** Command a servo part to a target rotor angle (rad). The authority clamps to
+ *  the part's hardware `ServoSpec`; the tick tracks the target at bounded
+ *  velocity (respecting the joint Controller's software limits, if any). */
+export type ServoSetOp = { op: 'servo.set'; part: number; angle: number };
+
 export type GroupOp = { op: 'group.subassembly'; instances: number[] };
 
 export type Op =
@@ -46,6 +51,7 @@ export type Op =
   | DisconnectOp
   | ControllerSetOp
   | MotorSetOp
+  | ServoSetOp
   | GroupOp;
 
 export type OpKind = Op['op'];

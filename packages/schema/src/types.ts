@@ -62,6 +62,18 @@ export interface SnapPort {
   diameter?: number;
 }
 
+/** Position-servo envelope for servo parts (e.g. an STS3215). This is the
+ *  HARDWARE envelope of the part; per-joint software limits belong to the
+ *  assembly (the joint's Controller params), not the catalog. */
+export interface ServoSpec {
+  /** Lowest reachable rotor angle (rad). */
+  minAngle: number;
+  /** Highest reachable rotor angle (rad). */
+  maxAngle: number;
+  /** No-load angular speed cap (rad/s). */
+  maxVelocity: number;
+}
+
 /** A catalog part: geometry + mass + ordered ports. Pure data, no behaviour. */
 export interface Part {
   id: string;
@@ -72,6 +84,8 @@ export interface Part {
   ports: SnapPort[];
   /** Gear tooth count, for gear parts (drives the symbolic mesh ratio). */
   teeth?: number;
+  /** Present iff the part is a position servo — enables the `servo.set` op. */
+  servo?: ServoSpec;
 }
 
 /** A placed instance of a catalog Part. Ports are read from the catalog by

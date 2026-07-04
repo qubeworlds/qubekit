@@ -40,6 +40,14 @@ export function rotate(q: Quat, v: Vec3): Vec3 {
   return add(v, add(scale(uv, 2 * w), scale(uuv, 2)));
 }
 
+/** Quaternion for a rotation of `angle` rad about unit `axis` (right-handed). */
+export function quatAxisAngle(axis: Vec3, angle: number): Quat {
+  const a = normalize(axis);
+  const h = angle / 2;
+  const s = Math.sin(h);
+  return [Math.cos(h), a[0] * s, a[1] * s, a[2] * s];
+}
+
 /** Shortest-arc quaternion rotating unit vector `from` onto unit vector `to`. */
 export function quatFromTo(from: Vec3, to: Vec3): Quat {
   const f = normalize(from);

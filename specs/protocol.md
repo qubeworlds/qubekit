@@ -41,6 +41,8 @@ both milestones; only the transport differs:
 { "op": "controller.set",  "part": 31, "q64Module": "controllers/blink_motor.q",
                            "params": { "freq": 4.0 } }
 { "op": "motor.set",       "part": 31, "speed": 0.8 }   // -1..1 normalized
+{ "op": "servo.set",       "part": 12, "angle": 0.5 }   // target rad; servo parts only —
+                                                        // clamped to the part's hardware envelope
 
 { "op": "group.subassembly", "instances": [17, 23, 31] }  // assigns a group id
 ```

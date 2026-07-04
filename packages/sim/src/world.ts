@@ -28,6 +28,9 @@ export class World {
   readonly catalog: Catalog;
   /** motor.set state: instance id → angular speed (rad/s). Read by the tick. */
   readonly motorSpeeds = new Map<number, number>();
+  /** servo.set state: instance id → target rotor angle (rad). Read by the tick,
+   *  which tracks the target at bounded velocity and drives `motorSpeeds`. */
+  readonly servoTargets = new Map<number, number>();
 
   private nextInstance = 1;
   private nextConnection = 1;
@@ -127,6 +130,7 @@ export class World {
           (c) => c.fromPart !== op.instance && c.toPart !== op.instance,
         );
         this.motorSpeeds.delete(op.instance);
+        this.servoTargets.delete(op.instance);
         // inverse: re-place the part, then re-form each removed connection.
         const inverse: Op[] = [
           { op: 'part.place', partType: inst.partType, transform: inst.transform },
@@ -177,6 +181,19 @@ export class World {
         const prev = this.motorSpeeds.get(op.part);
         this.motorSpeeds.set(op.part, op.speed);
         return { result: { ok: true }, inverse: [{ op: 'motor.set', part: op.part, speed: prev ?? 0 }] };
+      }
+
+      case 'servo.set': {
+        const inst = this.inst(op.part);
+        if (!inst) return { result: { ok: false, reason: `no instance ${op.part}` } };
+        const spec = this.part(inst.partType)?.servo;
+        if (!spec) return { result: { ok: false, reason: `${inst.partType} is not a servo` } };
+        // Clamp to the HARDWARE envelope here; the joint's software limits (its
+        // Controller params) are the tick's concern, not the op's.
+        const angle = Math.min(spec.maxAngle, Math.max(spec.minAngle, op.angle));
+        const prev = this.servoTargets.get(op.part);
+        this.servoTargets.set(op.part, angle);
+        return { result: { ok: true }, inverse: [{ op: 'servo.set', part: op.part, angle: prev ?? 0 }] };
       }
 
       case 'group.subassembly': {

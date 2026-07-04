@@ -65,6 +65,15 @@ export function validatePart(data: unknown): Check {
       }
     });
   }
+  if (p.servo !== undefined) {
+    const s = p.servo;
+    if (!isNum(s?.minAngle) || !isNum(s?.maxAngle) || !isNum(s?.maxVelocity)) {
+      errs.push('part.servo: expected { minAngle, maxAngle, maxVelocity } numbers');
+    } else {
+      if (s.minAngle >= s.maxAngle) errs.push('part.servo: minAngle must be < maxAngle');
+      if (s.maxVelocity <= 0) errs.push('part.servo: maxVelocity must be > 0');
+    }
+  }
   return fail(errs);
 }
 

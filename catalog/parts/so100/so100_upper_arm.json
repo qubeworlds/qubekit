@@ -1,0 +1,48 @@
+{
+  "id": "so100_upper_arm",
+  "name": "SO-100 upper arm",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/upper_arm.glb",
+  "mass": 0.162409,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "horn",
+      "type": "axle_socket",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        1,
+        0,
+        0
+      ],
+      "allowedCounterparts": [
+        "motor_out",
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    },
+    {
+      "id": "elbow_flex_servo",
+      "type": "pin_socket",
+      "localPos": [
+        0,
+        0.11257,
+        0.028
+      ],
+      "localAxis": [
+        1,
+        0,
+        0
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

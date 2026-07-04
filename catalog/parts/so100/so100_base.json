@@ -1,0 +1,28 @@
+{
+  "id": "so100_base",
+  "name": "SO-100 base",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/base.glb",
+  "mass": 1,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "shoulder_pan_servo",
+      "type": "pin_socket",
+      "localPos": [
+        0,
+        -0.0452,
+        0.0165
+      ],
+      "localAxis": [
+        0,
+        0.000006327,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

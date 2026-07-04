@@ -1,0 +1,29 @@
+{
+  "id": "so100_jaw",
+  "name": "SO-100 jaw",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/jaw.glb",
+  "mass": 0.0202444,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "horn",
+      "type": "axle_socket",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "motor_out",
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}

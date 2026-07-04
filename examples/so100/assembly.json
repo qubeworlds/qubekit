@@ -1,0 +1,489 @@
+{
+  "id": "so100",
+  "name": "SO-100 arm",
+  "rev": 0,
+  "parts": [
+    {
+      "id": 1,
+      "partType": "so100_base",
+      "transform": {
+        "p": [
+          0,
+          0,
+          0
+        ],
+        "q": [
+          0.707106781,
+          -0.707106781,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          0,
+          0.0165,
+          0.0452
+        ],
+        "q": [
+          0.707104544,
+          -0.707109018,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "partType": "so100_shoulder",
+      "transform": {
+        "p": [
+          0,
+          0.0165,
+          0.0452
+        ],
+        "q": [
+          1,
+          -0.000003163,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          0,
+          0.119000194,
+          0.075799352
+        ],
+        "q": [
+          0.439542872,
+          -0.55389716,
+          0.439542872,
+          -0.55389716
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "partType": "so100_upper_arm",
+      "transform": {
+        "p": [
+          0,
+          0.119000194,
+          0.075799352
+        ],
+        "q": [
+          0.62160749,
+          -0.783328876,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          0,
+          0.120691054,
+          -0.040188346
+        ],
+        "q": [
+          0.702467927,
+          -0.080862915,
+          0.702467927,
+          -0.080862915
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "partType": "so100_lower_arm",
+      "transform": {
+        "p": [
+          0,
+          0.120691054,
+          -0.040188346
+        ],
+        "q": [
+          0.99343967,
+          -0.114357431,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          0,
+          0.156406271,
+          0.090001797
+        ],
+        "q": [
+          0.577705857,
+          -0.407744949,
+          0.577705857,
+          -0.407744949
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "partType": "so100_wrist",
+      "transform": {
+        "p": [
+          0,
+          0.156406271,
+          0.090001797
+        ],
+        "q": [
+          0.816999458,
+          -0.576638436,
+          0,
+          0
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          0,
+          0.1362742,
+          0.146629614
+        ],
+        "q": [
+          0.120180891,
+          -0.696821151,
+          0.696816743,
+          0.120180131
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "partType": "so100_gripper",
+      "transform": {
+        "p": [
+          0,
+          0.1362742,
+          0.146629614
+        ],
+        "q": [
+          0.577707684,
+          -0.407746238,
+          0.577704029,
+          -0.407743659
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "partType": "so100_sts3215",
+      "transform": {
+        "p": [
+          -1.28e-7,
+          0.147133757,
+          0.176386463
+        ],
+        "q": [
+          -0.577700374,
+          0.407741079,
+          0.577711339,
+          -0.407748818
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "partType": "so100_jaw",
+      "transform": {
+        "p": [
+          -1.28e-7,
+          0.147133757,
+          0.176386463
+        ],
+        "q": [
+          -0.577700374,
+          0.407741079,
+          0.577711339,
+          -0.407748818
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": 1,
+      "fromPart": 2,
+      "fromPort": "mount",
+      "toPart": 1,
+      "toPort": "shoulder_pan_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 2,
+      "fromPart": 2,
+      "fromPort": "out",
+      "toPart": 3,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 3,
+      "fromPart": 4,
+      "fromPort": "mount",
+      "toPart": 3,
+      "toPort": "shoulder_lift_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 4,
+      "fromPart": 4,
+      "fromPort": "out",
+      "toPart": 5,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 5,
+      "fromPart": 6,
+      "fromPort": "mount",
+      "toPart": 5,
+      "toPort": "elbow_flex_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 6,
+      "fromPart": 6,
+      "fromPort": "out",
+      "toPart": 7,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 7,
+      "fromPart": 8,
+      "fromPort": "mount",
+      "toPart": 7,
+      "toPort": "wrist_flex_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 8,
+      "fromPart": 8,
+      "fromPort": "out",
+      "toPart": 9,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 9,
+      "fromPart": 10,
+      "fromPort": "mount",
+      "toPart": 9,
+      "toPort": "wrist_roll_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 10,
+      "fromPart": 10,
+      "fromPort": "out",
+      "toPart": 11,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 11,
+      "fromPart": 12,
+      "fromPort": "mount",
+      "toPart": 11,
+      "toPort": "gripper_servo",
+      "constraintType": "fixed"
+    },
+    {
+      "id": 12,
+      "fromPart": 12,
+      "fromPort": "out",
+      "toPart": 13,
+      "toPort": "horn",
+      "constraintType": "fixed"
+    }
+  ],
+  "controllers": [
+    {
+      "id": 1,
+      "part": 2,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": -2,
+        "maxAngle": 2,
+        "maxVelocity": 1
+      }
+    },
+    {
+      "id": 2,
+      "part": 4,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": 0,
+        "maxAngle": 3.5,
+        "maxVelocity": 1
+      }
+    },
+    {
+      "id": 3,
+      "part": 6,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": -3.14158,
+        "maxAngle": 0,
+        "maxVelocity": 1
+      }
+    },
+    {
+      "id": 4,
+      "part": 8,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": -2.5,
+        "maxAngle": 1.2,
+        "maxVelocity": 1
+      }
+    },
+    {
+      "id": 5,
+      "part": 10,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": -3.14158,
+        "maxAngle": 3.14158,
+        "maxVelocity": 1
+      }
+    },
+    {
+      "id": 6,
+      "part": 12,
+      "q64Module": "controllers/so100_joint.q",
+      "inputs": [
+        "target_angle"
+      ],
+      "outputs": [
+        "motor_speed"
+      ],
+      "params": {
+        "minAngle": -0.2,
+        "maxAngle": 2,
+        "maxVelocity": 1
+      }
+    }
+  ]
+}

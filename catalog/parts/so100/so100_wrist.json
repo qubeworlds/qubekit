@@ -1,0 +1,48 @@
+{
+  "id": "so100_wrist",
+  "name": "SO-100 wrist",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/wrist.glb",
+  "mass": 0.0661321,
+  "material": "plastic",
+  "ports": [
+    {
+      "id": "horn",
+      "type": "axle_socket",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        1,
+        0,
+        0
+      ],
+      "allowedCounterparts": [
+        "motor_out",
+        "axle"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    },
+    {
+      "id": "wrist_roll_servo",
+      "type": "pin_socket",
+      "localPos": [
+        0,
+        -0.0601,
+        0
+      ],
+      "localAxis": [
+        0,
+        1,
+        0
+      ],
+      "allowedCounterparts": [
+        "pin"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}
