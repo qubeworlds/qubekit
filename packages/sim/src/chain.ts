@@ -18,10 +18,13 @@
 // both sides carry the same integrated angle and the rotation is applied once,
 // at the motor edge or the hinge — never twice.
 //
-// Assumption: mated port axes are PARALLEL at the zero pose (how the catalog's
-// explicit-transform assemblies are authored). A snap-placed mate is
-// anti-parallel; when snap-authored articulated chains land, the sign must
-// come from the mated axes' dot product.
+// Driven edges take their rotation AXIS from the KEYED (horn/socket) side of
+// the connection — the horn axis defines the joint's positive direction, so a
+// motor body mounted shaft-reversed (the SO-100 mounts most of its servos
+// that way) doesn't flip the joint sign. Hinge edges still assume the mated
+// axes are PARALLEL at the zero pose (explicit-transform assemblies); a
+// snap-placed mate is anti-parallel — when snap-authored articulated chains
+// land, that sign must come from the mated axes' dot product.
 
 import type { Assembly, Connection, Quat, SnapPort, Transform, Vec3 } from '@qubekit/schema';
 import type { Catalog } from './gears';
@@ -87,6 +90,7 @@ export function linkTransforms(
       let mV = mU;
       if (uPort && vPort) {
         let angle = 0;
+        let driven = false;
         if (conn.constraintType === 'hinge') {
           angle = (angles.get(v) ?? 0) - (angles.get(u) ?? 0);
         } else if (
@@ -95,13 +99,24 @@ export function linkTransforms(
           ROTATIONAL.has(uPort.type) &&
           ROTATIONAL.has(vPort.type)
         ) {
+          driven = true;
           const motorSide = uPort.type === 'motor_out' ? u : v;
           angle = (angles.get(motorSide) ?? 0) * (motorSide === u ? 1 : -1);
         }
         if (angle !== 0) {
-          // Pivot/axis from the u-side port, carried into u's CURRENT pose.
+          // Pivot from the u-side port (any point of the joint-axis line is a
+          // valid hinge pivot), carried into u's CURRENT pose. The rotation
+          // AXIS of a DRIVEN edge comes from the KEYED (horn/socket) side —
+          // it defines the joint's positive direction, independent of which
+          // way round the motor body is mounted (a shaft-reversed servo must
+          // not flip the joint sign). Both zero poses live in the same world
+          // frame, so either side's axis is carried by u's motion.
+          const keyedPort = uPort.type === 'motor_out' ? vPort : uPort;
+          const keyedT0 = uPort.type === 'motor_out' ? zeroPose.get(v)! : t0U;
+          const axisPort = driven ? keyedPort : uPort;
+          const axisT0 = driven ? keyedT0 : t0U;
           const pivot = applyMotion(mU, toWorldPoint(t0U, uPort.localPos));
-          const axis = rotate(mU.q, toWorldDir(t0U, uPort.localAxis));
+          const axis = rotate(mU.q, toWorldDir(axisT0, axisPort.localAxis));
           mV = compose(aboutPivot(axis, pivot, angle), mU);
         }
       }

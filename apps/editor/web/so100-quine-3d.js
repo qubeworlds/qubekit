@@ -85,12 +85,12 @@ const alignY = (d) => {
   return [[xv[0], yv[0], zv[0]], [xv[1], yv[1], zv[1]], [xv[2], yv[2], zv[2]]];
 };
 
-// The arm is ~0.35 m; the engine's shadow map is tuned for metre-scale scenes
-// and shows acne at true size. Render at 3× — the DATA stays SI, the view
-// scales at build time: root positions ×VIS, root scale = VIS (children
-// inherit), and the skill's baked pivots/zero poses ×VIS. Axes are unit
-// vectors and rotations are scale-free, so the FK is unchanged.
-const VIS = 3;
+// Display scale. 1 = true size (SI metres): the engine now fits its shadow
+// volume to the content's real AABBs with a slope-scaled bias, so the ~0.35 m
+// arm shadows cleanly at 1:1 (the earlier 3× workaround dodged a shadow map
+// fitted to ±1 m-padded positions). The plumbing stays — the DATA is SI and
+// the view scales at build time — in case a scene ever wants it.
+const VIS = 1;
 const vp = (p) => p.map((v) => v * VIS);
 
 function buildScene(useMeshes) {

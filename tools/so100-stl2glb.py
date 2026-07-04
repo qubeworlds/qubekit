@@ -78,28 +78,25 @@ def fetch(name):
     return path
 
 
-INNER_SHELL = 0.0004  # m — inner-lining inset; well under the ~2 mm print walls
-
-
 def load_clean(name):
     """Load an STL renderer-ready: weld (process=True) so face adjacency
     exists, force the winding consistently OUTWARD, unweld so per-vertex
-    normals equal face normals (crisp CAD edges) — then add an INNER LINING: a
-    winding-reversed copy of every triangle, inset along the outward normal.
-    The printed parts are thin OPEN shells (the base's cable opening, the
-    gripper mouth); their interior walls carry away-facing normals, so looked
-    at through an opening they render near-black — reading as inverted/culled
-    faces. The quine renderer neither culls nor reads glTF `doubleSided` (and
-    its strict-LESS depth test means a coincident reversed copy never wins),
-    so the lining sits a hair inside: interior views hit it, lit correctly;
-    from outside it stays hidden behind the outer surface."""
+    normals equal face normals (crisp CAD edges). The printed parts are thin
+    OPEN shells (the base's cable opening, the gripper mouth) — the quine
+    renderer honors the material's glTF `doubleSided` flag (flips the shading
+    normal toward the viewer), so their interior walls light correctly with
+    no extra geometry. (An earlier revision baked an inset, winding-reversed
+    "inner lining" into the glbs to fake this on the pre-doubleSided engine —
+    it doubled every mesh; retired when the engine shipped the flag.)
+
+    NOTE: touch `vertex_normals` before export — trimesh only writes a NORMAL
+    accessor for normals it has computed, and shipping explicit normals keeps
+    the glbs loader-agnostic."""
     mesh = trimesh.load(fetch(name), force='mesh')
     trimesh.repair.fix_normals(mesh)
     mesh.unmerge_vertices()
-    inner = mesh.copy()
-    inner.vertices = inner.vertices - inner.vertex_normals * INNER_SHELL
-    inner.invert()
-    return trimesh.util.concatenate([mesh, inner])
+    _ = mesh.vertex_normals
+    return mesh
 
 
 def export(mesh, out_name, rgba):

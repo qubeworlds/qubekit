@@ -146,13 +146,19 @@ describe('SO-100 catalog + assembly', () => {
       expectQuatClose(t.q, want.get(link)!.q, 1e-6);
     }
     // Servo BODIES stay with their parent link (the case is bolted to it; the
-    // angle lives across the driven edge, not on the mesh).
+    // angle lives across the driven edge, not on the mesh). Their shaft sits
+    // ON the joint-axis line — possibly offset ALONG it (the joint origin is
+    // the horn interface, the motor body nests one case-length away) — so the
+    // component of (servo − joint origin) perpendicular to the axis is zero.
     JOINTS.forEach((j, i) => {
       const parentPose = got.get(LINK_INSTANCE[j.parent])!;
       const servoPose = got.get(SERVO_INSTANCE[i])!;
       const jointWorld = vadd(parentPose.p, qrot(parentPose.q, /* joint origin in parent frame */ j.xyz));
-      // ...whose position is the joint origin carried by the parent's pose:
-      expectClose(servoPose.p, jointWorld);
+      const axisWorld = qrot(parentPose.q, qrot(qrpy(j.rpy), j.axis));
+      const off = servoPose.p.map((v, k) => v - jointWorld[k]) as Vec3;
+      const axial = off[0] * axisWorld[0] + off[1] * axisWorld[1] + off[2] * axisWorld[2];
+      const perp = off.map((v, k) => v - axial * axisWorld[k]) as Vec3;
+      expectClose(perp, [0, 0, 0]);
     });
   });
 

@@ -36,6 +36,25 @@ const JOINTS = [
   { name: 'gripper',       parent: 'gripper',   child: 'jaw',       xyz: [-0.0202, -0.0244, 0], rpy: [0, 3.14158, 0],  axis: [0, 0, 1], min: -0.2,     max: 2,       vel: 1 },
 ];
 
+// TRUE servo poses in each PARENT link frame — extracted by
+// tools/so100-servo-poses.py from the URDF's per-link `<Link>_Motor.stl`
+// meshes (registration: shaft constrained to the joint axis line; side, spin
+// and axial offset solved by nearest-neighbour fit against the canonical
+// sts3215 mesh; ≤0.6 mm residual, wrist_roll 2.4 mm — its motor STL is a
+// slightly different variant). Without these the motors float at an arbitrary
+// spin next to the links instead of nesting in their printed pockets. The
+// axial offsets are kinematically harmless: any point on the joint-axis line
+// is a valid hinge pivot, and the sim's FK takes the rotation AXIS from the
+// keyed (horn) port, so a motor mounted shaft-reversed doesn't flip the sign.
+const SERVO_POSES = {
+  shoulder_pan:  { q: [1.0, -0.000003163, 0.0, 0.0],                          p: [0.0, -0.0452, 0.0165] },
+  shoulder_lift: { q: [0.000000001, 0.707106781, -0.000000001, -0.707106781], p: [0.030000086, 0.1025, 0.0306] },
+  elbow_flex:    { q: [-0.499429525, 0.500569825, 0.499429525, -0.500569825], p: [0.030249146, 0.11257, 0.028] },
+  wrist_flex:    { q: [0.500010873, -0.499989127, -0.500010873, 0.499989127], p: [0.030202672, 0.0052, 0.1349] },
+  wrist_roll:    { q: [0.501508273, 0.501508273, -0.498487164, 0.498487164],  p: [0.0, -0.015445128, 0.0] },
+  gripper:       { q: [0.707091391, 0.000004474, -0.000004474, -0.707122171], p: [-0.020199624, -0.0244, -0.029702839] },
+};
+
 // URDF link inertial masses (kg). NOTE: each URDF link's mass INCLUDES its
 // motor — the separate sts3215 part mass below is informational; a dynamics
 // pass must not double-count (see examples/so100/README.md).
@@ -151,13 +170,10 @@ const linkId = { base: baseId };
 
 for (const j of JOINTS) {
   const parentT = linkT[j.parent];
-  // Servo: output shaft at the joint origin, local +Z along the joint axis
-  // (spin about the shaft is cosmetic — the mesh may be re-oriented later).
-  // Align in the CHILD frame first (the axis there is an exact unit vector),
-  // then apply the exact rpy rotation — qfromto against R(rpy)·axis would hit
-  // its antiparallel branch for the gripper joint (rpy y ≈ π) and silently
-  // drop the ~1.3e-5 tilt the URDF's truncated π carries.
-  const servoT = compose(parentT, { p: j.xyz, q: qmul(qrpy(j.rpy), qfromto([0, 0, 1], j.axis)) });
+  // Servo: the TRUE pose measured from the URDF's motor mesh (SERVO_POSES) —
+  // shaft on the joint-axis line (so the out port stays a valid hinge pivot),
+  // body nested in the link's printed pocket.
+  const servoT = compose(parentT, SERVO_POSES[j.name]);
   const servoId = nextId++;
   instances.push({ id: servoId, partType: 'so100_sts3215', transform: roundT(servoT) });
 
