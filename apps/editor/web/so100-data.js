@@ -4,7 +4,8 @@
 //   links[i]:  { name, p0, q0, bone }  — bone = child-joint origin in the
 //              link's local frame (null for the leaf jaw)
 //   joints[i]: { name, pivot0, axis0, min, max, vel, parent, child }
-//   servos[i]: { p0, q0, joint, parent } — STS3215 bodies (case rides parent)
+//   servos[i]: { p0, q0, joint, parent, mesh } — STS3215 bodies (case rides
+//              parent; mesh = which servo glb variant this joint renders)
 export const SO100 = {
   "links": [
     {
@@ -261,7 +262,8 @@ export const SO100 = {
         0
       ],
       "joint": 0,
-      "parent": 0
+      "parent": 0,
+      "mesh": "sts3215"
     },
     {
       "p0": [
@@ -276,7 +278,8 @@ export const SO100 = {
         -0.707106781
       ],
       "joint": 1,
-      "parent": 1
+      "parent": 1,
+      "mesh": "sts3215"
     },
     {
       "p0": [
@@ -291,7 +294,8 @@ export const SO100 = {
         -0.702375521
       ],
       "joint": 2,
-      "parent": 2
+      "parent": 2,
+      "mesh": "sts3215"
     },
     {
       "p0": [
@@ -306,7 +310,8 @@ export const SO100 = {
         0.553888992
       ],
       "joint": 3,
-      "parent": 3
+      "parent": 3,
+      "mesh": "sts3215"
     },
     {
       "p0": [
@@ -321,7 +326,8 @@ export const SO100 = {
         0.694710601
       ],
       "joint": 4,
-      "parent": 4
+      "parent": 4,
+      "mesh": "sts3215_wrist"
     },
     {
       "p0": [
@@ -336,7 +342,8 @@ export const SO100 = {
         -0.696822703
       ],
       "joint": 5,
-      "parent": 5
+      "parent": 5,
+      "mesh": "sts3215"
     }
   ]
 };

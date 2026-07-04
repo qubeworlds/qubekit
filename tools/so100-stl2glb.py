@@ -115,6 +115,24 @@ def export(mesh, out_name, rgba):
           f'bounds {np.round(mesh.bounds, 4).tolist()}')
 
 
+# The wrist-roll servo's pose in the `wrist` link frame, recovered by
+# tools/so100-servo-poses.py (SERVO_POSES.wrist_roll in gen-so100.mjs). Its
+# Wrist_Pitch_Roll_Motor.stl is a slightly DIFFERENT mesh variant than the
+# other five motors (2.4 mm registration residual against the canonical), so
+# that joint ships its own part mesh, reframed by this same pose — the
+# residual cancels: pose ∘ reframe reproduces the STL exactly in the link.
+WRIST_Q = [0.501508273, 0.501508273, -0.498487164, 0.498487164]  # wxyz
+WRIST_P = np.array([0.0, -0.015445128, 0.0])
+
+
+def quat_matrix(w, x, y, z):
+    return np.array([
+        [1 - 2*(y*y + z*z), 2*(x*y - w*z), 2*(x*z + w*y)],
+        [2*(x*y + w*z), 1 - 2*(x*x + z*z), 2*(y*z - w*x)],
+        [2*(x*z - w*y), 2*(y*z + w*x), 1 - 2*(x*x + y*y)],
+    ])
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     for stl, part in LINKS.items():
@@ -126,7 +144,13 @@ def main():
     R = rpy_matrix(*PAN_RPY) @ align_z_to(PAN_AXIS)
     motor.vertices = (motor.vertices - PAN_XYZ) @ R  # (v−p)·R == Rᵀ(v−p) rowwise
     export(motor, 'sts3215', MOTOR_RGBA)
-    print(f'wrote {len(LINKS) + 1} glb -> {os.path.abspath(OUT)}')
+
+    # The wrist-roll variant: its own STL, reframed by its own recovered pose.
+    wrist = load_clean('Wrist_Pitch_Roll_Motor.stl')
+    Rw = quat_matrix(*WRIST_Q)
+    wrist.vertices = (wrist.vertices - WRIST_P) @ Rw
+    export(wrist, 'sts3215_wrist', MOTOR_RGBA)
+    print(f'wrote {len(LINKS) + 2} glb -> {os.path.abspath(OUT)}')
 
 
 if __name__ == '__main__':

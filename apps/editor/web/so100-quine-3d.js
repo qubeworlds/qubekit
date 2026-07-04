@@ -23,7 +23,7 @@ import { SO100 } from './so100-data.js';
 
 const ASSETS_BASE = (new URLSearchParams(location.search).get('assets') ||
   'https://cdn.qubeworlds.com/qubekit/parts/so100').replace(/\/+$/, '');
-const MESH_NAMES = [...SO100.links.map((l) => l.name), 'sts3215'];
+const MESH_NAMES = [...SO100.links.map((l) => l.name), ...new Set(SO100.servos.map((sv) => sv.mesh))];
 
 // name → ArrayBuffer, fetched once per page. null until loadMeshes resolves;
 // {} (empty-ish) entries missing → primitive fallback.
@@ -139,7 +139,7 @@ function buildScene(useMeshes) {
   // behind the shaft + a horn disc on +Z.
   SO100.servos.forEach((s, i) => {
     if (useMeshes) {
-      E({ name: 'srv' + i, geometry: { kind: 'gltf', source: 'so100_sts3215.glb' },
+      E({ name: 'srv' + i, geometry: { kind: 'gltf', source: `so100_${s.mesh}.glb` },
         transform: { position: vp(s.p0), scale: [VIS, VIS, VIS] } });
       return;
     }

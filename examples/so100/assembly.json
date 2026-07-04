@@ -203,7 +203,7 @@
     },
     {
       "id": 10,
-      "partType": "so100_sts3215",
+      "partType": "so100_sts3215_wrist",
       "transform": {
         "p": [
           0,

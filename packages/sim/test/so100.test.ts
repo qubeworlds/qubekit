@@ -93,7 +93,7 @@ describe('SO-100 catalog + assembly', () => {
   const assembly = loadAssembly();
 
   it('every part validates', () => {
-    expect(catalog.size).toBe(8); // 7 links + the STS3215
+    expect(catalog.size).toBe(9); // 7 links + the STS3215 + its wrist mesh variant
     for (const part of catalog.values()) {
       const check = validatePart(part);
       expect(check.errors, part.id).toEqual([]);

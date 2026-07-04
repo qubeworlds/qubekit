@@ -1,0 +1,53 @@
+{
+  "id": "so100_sts3215_wrist",
+  "name": "STS3215 servo (wrist variant)",
+  "geometry": "cdn.qubeworlds.com/qubekit/parts/so100/sts3215_wrist.glb",
+  "mass": 0.055,
+  "material": "metal",
+  "servo": {
+    "minAngle": -6.283185307,
+    "maxAngle": 6.283185307,
+    "maxVelocity": 4.6
+  },
+  "ports": [
+    {
+      "id": "mount",
+      "type": "pin",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "pin_socket"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    },
+    {
+      "id": "out",
+      "type": "motor_out",
+      "localPos": [
+        0,
+        0,
+        0
+      ],
+      "localAxis": [
+        0,
+        0,
+        1
+      ],
+      "allowedCounterparts": [
+        "axle",
+        "axle_socket"
+      ],
+      "tolerance": 0.001,
+      "constraint": "fixed"
+    }
+  ]
+}
