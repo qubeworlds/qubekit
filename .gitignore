@@ -4,3 +4,4 @@ dist/
 coverage/
 .DS_Store
 parts-dist/
+so100-glb-dist/

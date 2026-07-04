@@ -7,16 +7,55 @@
 //     assembly's joint table (pivots/axes baked from so100-data.js — the same
 //     generated constants the model uses), posing every link + servo root.
 //
-// Geometry is primitives standing in for the printed parts until the URDF STLs
-// are converted to glb on the CDN: each link is a root hub + a bone box to its
-// child joint; each STS3215 is a dark box with a horn disc on its output shaft.
-// All the DIMENSIONS come from the joint table — nothing here is a guessed
-// length; only thicknesses are cosmetic.
+// Geometry: the REAL printed-part meshes — the SO-ARM100 STLs converted to glb
+// (tools/so100-stl2glb.py) and served from the CDN. Each mesh is authored in
+// its link's local frame (the URDF link frame — the same frame the catalog
+// ports use), so the roots render them with no offset; the servo mesh is the
+// Base_Motor reframed to the sts3215 part frame. If the mesh fetch fails
+// (offline), the view falls back to primitives whose every LENGTH still comes
+// from the joint table — only thicknesses are cosmetic. `?assets=<base>`
+// overrides the mesh origin for local dev (like `?engine=`).
 //
 // Shares the single engine module (one WebGL context) via bootEngine.
 
 import { bootEngine } from './quine-3d.js';
 import { SO100 } from './so100-data.js';
+
+const ASSETS_BASE = (new URLSearchParams(location.search).get('assets') ||
+  'https://cdn.qubeworlds.com/qubekit/parts/so100').replace(/\/+$/, '');
+const MESH_NAMES = [...SO100.links.map((l) => l.name), 'sts3215'];
+
+// name → ArrayBuffer, fetched once per page. null until loadMeshes resolves;
+// {} (empty-ish) entries missing → primitive fallback.
+let meshBytes = null;
+async function loadMeshes() {
+  if (meshBytes) return meshBytes;
+  const fetched = {};
+  await Promise.all(MESH_NAMES.map(async (n) => {
+    try {
+      const r = await fetch(`${ASSETS_BASE}/${n}.glb`, { mode: 'cors' });
+      if (r.ok) fetched[n] = new Uint8Array(await r.arrayBuffer());
+    } catch (_) { /* offline / blocked — fall back to primitives */ }
+  }));
+  meshBytes = fetched;
+  return fetched;
+}
+const haveAllMeshes = (m) => MESH_NAMES.every((n) => m[n]);
+
+// Hand the meshes to the engine's asset registry (must precede the scene that
+// references them) — same staging as the drone's stone texture.
+function provideMeshes(m) {
+  try {
+    const mod = window.Module;
+    for (const n of MESH_NAMES) {
+      if (!m[n]) continue;
+      const p = mod._malloc(m[n].length);
+      mod.HEAPU8.set(m[n], p);
+      mod.ccall('quine_provide_asset', null, ['string', 'number', 'number'], [`so100_${n}.glb`, p, m[n].length]);
+      mod._free(p);
+    }
+  } catch (_) {}
+}
 
 const PRINT = [1.0, 0.82, 0.12, 1];   // 3d_printed golden — the URDF's material
 const MOTOR = [0.10, 0.10, 0.11, 1];  // sts3215 black — likewise
@@ -46,18 +85,33 @@ const alignY = (d) => {
   return [[xv[0], yv[0], zv[0]], [xv[1], yv[1], zv[1]], [xv[2], yv[2], zv[2]]];
 };
 
-function buildScene() {
+// The arm is ~0.35 m; the engine's shadow map is tuned for metre-scale scenes
+// and shows acne at true size. Render at 3× — the DATA stays SI, the view
+// scales at build time: root positions ×VIS, root scale = VIS (children
+// inherit), and the skill's baked pivots/zero poses ×VIS. Axes are unit
+// vectors and rotations are scale-free, so the FK is unchanged.
+const VIS = 3;
+const vp = (p) => p.map((v) => v * VIS);
+
+function buildScene(useMeshes) {
   const ents = [];
   const E = (o) => ents.push(o);
 
-  E({ name: 'floor', geometry: { kind: 'box', half: [0.45, 0.012, 0.45] },
-    transform: { position: [0, -0.012, 0] },
+  E({ name: 'floor', geometry: { kind: 'box', half: [0.45 * VIS, 0.012 * VIS, 0.45 * VIS] },
+    transform: { position: [0, -0.012 * VIS, 0] },
     material: { color: [0.16, 0.18, 0.22, 1], metallic: 0.1, roughness: 0.9 } });
 
-  // Link roots (the skill owns their world pose) + parented bone geometry.
+  // Link roots (the skill owns their world pose). With meshes: the root IS the
+  // printed part (glb in the link's local frame, its own PBR material — no
+  // scene material override). Without: a hub box + parented bone geometry.
   SO100.links.forEach((l, i) => {
+    if (useMeshes) {
+      E({ name: 'lnk' + i, geometry: { kind: 'gltf', source: `so100_${l.name}.glb` },
+        transform: { position: vp(l.p0), scale: [VIS, VIS, VIS] } });
+      return;
+    }
     E({ name: 'lnk' + i, geometry: { kind: 'box', half: [0.008, 0.008, 0.008] },
-      transform: { position: l.p0 }, material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
+      transform: { position: vp(l.p0), scale: [VIS, VIS, VIS] }, material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
     if (l.bone) {
       const len = Math.hypot(...l.bone);
       const rot = zyx(alignY(l.bone));
@@ -66,23 +120,31 @@ function buildScene() {
         material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
     }
   });
-  // Base plate (in the base's LOCAL frame — URDF Z-up; q0 lays it flat).
-  E({ name: 'plate', geometry: { kind: 'roundedBox', half: [0.05, 0.045, 0.008], radius: 0.006, segments: 3 },
-    transform: { position: [0, -0.025, 0.008] }, parent: { entity: 'lnk0' },
-    material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
-  // Gripper fingers: the fixed jaw (on the gripper link) and the moving jaw
-  // both extend −Y in their local frames.
-  for (const [nm, host] of [['fingerF', 'lnk5'], ['fingerM', 'lnk6']]) {
-    E({ name: nm, geometry: { kind: 'box', half: [0.006, 0.042, 0.010] },
-      transform: { position: [0, -0.052, 0] }, parent: { entity: host },
+  if (!useMeshes) {
+    // Base plate (in the base's LOCAL frame — URDF Z-up; q0 lays it flat).
+    E({ name: 'plate', geometry: { kind: 'roundedBox', half: [0.05, 0.045, 0.008], radius: 0.006, segments: 3 },
+      transform: { position: [0, -0.025, 0.008] }, parent: { entity: 'lnk0' },
       material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
+    // Gripper fingers: the fixed jaw (on the gripper link) and the moving jaw
+    // both extend −Y in their local frames.
+    for (const [nm, host] of [['fingerF', 'lnk5'], ['fingerM', 'lnk6']]) {
+      E({ name: nm, geometry: { kind: 'box', half: [0.006, 0.042, 0.010] },
+        transform: { position: [0, -0.052, 0] }, parent: { entity: host },
+        material: { color: PRINT, metallic: 0.05, roughness: 0.55 } });
+    }
   }
 
   // STS3215 servos: root at the output shaft (skill places it with the PARENT
-  // link's motion), body hanging −Z behind the shaft, horn disc on +Z.
+  // link's motion). Mesh: the reframed Base_Motor glb. Fallback: body box −Z
+  // behind the shaft + a horn disc on +Z.
   SO100.servos.forEach((s, i) => {
+    if (useMeshes) {
+      E({ name: 'srv' + i, geometry: { kind: 'gltf', source: 'so100_sts3215.glb' },
+        transform: { position: vp(s.p0), scale: [VIS, VIS, VIS] } });
+      return;
+    }
     E({ name: 'srv' + i, geometry: { kind: 'box', half: [0.004, 0.004, 0.004] },
-      transform: { position: s.p0 }, material: { color: MOTOR, metallic: 0.3, roughness: 0.5 } });
+      transform: { position: vp(s.p0), scale: [VIS, VIS, VIS] }, material: { color: MOTOR, metallic: 0.3, roughness: 0.5 } });
     E({ name: 'srvBody' + i, geometry: { kind: 'roundedBox', half: [0.0124, 0.0175, 0.0088], radius: 0.003, segments: 3 },
       transform: { position: [0, 0, -0.012], rotation: [Math.PI / 2, 0, 0] }, parent: { entity: 'srv' + i },
       material: { color: MOTOR, metallic: 0.3, roughness: 0.5 } });
@@ -95,7 +157,7 @@ function buildScene() {
   E({ name: 'fill', light: { kind: 'directional', direction: [0.6, -0.25, 0.55], color: [0.6, 0.7, 0.95], intensity: 0.5 } });
   E({ name: 'sky', environment: { sky: { zenith: [0.16, 0.22, 0.34], horizon: [0.42, 0.46, 0.52] }, ambient: { intensity: 0.55 } } });
   E({ name: 'camera', camera: { fovY: 0.65, near: 0.01, far: 60,
-    controller: { kind: 'orbit', target: [0, 0.14, 0], distance: 0.85, yaw: 0.65, pitch: 0.32 } } });
+    controller: { kind: 'orbit', target: [0, 0.14 * VIS, 0], distance: 0.85 * VIS, yaw: 0.65, pitch: 0.32 } } });
   return { schemaVersion: 1, name: 'so100', entities: ents };
 }
 
@@ -105,9 +167,12 @@ function buildScene() {
 // carried axis, exactly @qubekit/sim chain.ts), then pose every root.
 function buildSkill() {
   const roots = [];
-  SO100.links.forEach((l, i) => roots.push({ name: 'lnk' + i, link: i, p0: l.p0, R0: q2m(l.q0) }));
-  SO100.servos.forEach((s, i) => roots.push({ name: 'srv' + i, link: s.parent, p0: s.p0, R0: q2m(s.q0) }));
-  const D = JSON.stringify({ joints: SO100.joints, roots });
+  SO100.links.forEach((l, i) => roots.push({ name: 'lnk' + i, link: i, p0: vp(l.p0), R0: q2m(l.q0) }));
+  SO100.servos.forEach((s, i) => roots.push({ name: 'srv' + i, link: s.parent, p0: vp(s.p0), R0: q2m(s.q0) }));
+  const D = JSON.stringify({
+    joints: SO100.joints.map((j) => ({ ...j, pivot0: vp(j.pivot0) })),
+    roots,
+  });
   return `
 var D = ${D};
 var I = [[1,0,0],[0,1,0],[0,0,1]];
@@ -140,7 +205,6 @@ onPreStep(function (dt) {
 
 export function init3D(model, container) {
   const e = bootEngine();
-  const scene = buildScene();
   const skill = buildSkill();
   let raf = 0, last = 0;
 
@@ -155,9 +219,16 @@ export function init3D(model, container) {
   const reSync = () => { sizeCanvas(); window.dispatchEvent(new Event('resize')); };
   const onVisible = () => { if (document.visibilityState === 'visible') requestAnimationFrame(reSync); };
 
-  const loadAll = () => {
+  let disposed = false;
+  const loadAll = async () => {
+    // Fetch the printed-part glbs first (once per page); provide them BEFORE
+    // the scene that references them. Any miss → primitive fallback.
+    const m = await loadMeshes();
+    if (disposed) return;
+    const useMeshes = haveAllMeshes(m);
+    if (useMeshes) provideMeshes(m);
     e.enqueue({ type: 'config', config: { preferences: { grid: false, gizmo: false } } });
-    e.enqueue({ type: 'scene', json: JSON.stringify(scene) });
+    e.enqueue({ type: 'scene', json: JSON.stringify(buildScene(useMeshes)) });
     // (re-)install our placer — a sibling view may have replaced the skill slot.
     e.enqueue({ type: 'skill', code: skill });
   };
@@ -187,6 +258,7 @@ export function init3D(model, container) {
     stop() { e.setAutoplay(false); if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; } },
     resize() { reSync(); },
     dispose() {
+      disposed = true;
       e.setAutoplay(false);
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
       if (ro) { ro.disconnect(); ro = null; }
