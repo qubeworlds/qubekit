@@ -78,10 +78,37 @@ def fetch(name):
     return path
 
 
+INNER_SHELL = 0.0004  # m — inner-lining inset; well under the ~2 mm print walls
+
+
+def load_clean(name):
+    """Load an STL renderer-ready: weld (process=True) so face adjacency
+    exists, force the winding consistently OUTWARD, unweld so per-vertex
+    normals equal face normals (crisp CAD edges) — then add an INNER LINING: a
+    winding-reversed copy of every triangle, inset along the outward normal.
+    The printed parts are thin OPEN shells (the base's cable opening, the
+    gripper mouth); their interior walls carry away-facing normals, so looked
+    at through an opening they render near-black — reading as inverted/culled
+    faces. The quine renderer neither culls nor reads glTF `doubleSided` (and
+    its strict-LESS depth test means a coincident reversed copy never wins),
+    so the lining sits a hair inside: interior views hit it, lit correctly;
+    from outside it stays hidden behind the outer surface."""
+    mesh = trimesh.load(fetch(name), force='mesh')
+    trimesh.repair.fix_normals(mesh)
+    mesh.unmerge_vertices()
+    inner = mesh.copy()
+    inner.vertices = inner.vertices - inner.vertex_normals * INNER_SHELL
+    inner.invert()
+    return trimesh.util.concatenate([mesh, inner])
+
+
 def export(mesh, out_name, rgba):
     mesh.visual = trimesh.visual.TextureVisuals(
         material=trimesh.visual.material.PBRMaterial(
-            baseColorFactor=rgba, metallicFactor=0.05, roughnessFactor=0.6))
+            baseColorFactor=rgba, metallicFactor=0.05, roughnessFactor=0.6,
+            # the printed shells have real openings (wire slots, jaw mouths) a
+            # viewer can see into — render their interior walls too
+            doubleSided=True))
     path = os.path.join(OUT, f'{out_name}.glb')
     mesh.export(path)
     # round-trip sanity: reload and compare bounds
@@ -94,12 +121,11 @@ def export(mesh, out_name, rgba):
 def main():
     os.makedirs(OUT, exist_ok=True)
     for stl, part in LINKS.items():
-        mesh = trimesh.load(fetch(stl), force='mesh', process=False)
-        export(mesh, part, PRINT_RGBA)
+        export(load_clean(stl), part, PRINT_RGBA)
 
     # The servo: reframe Base_Motor from the base-link frame into the part's
     # local frame (shaft exit at the origin, +Z = joint axis): v' = Rᵀ(v − p).
-    motor = trimesh.load(fetch('Base_Motor.stl'), force='mesh', process=False)
+    motor = load_clean('Base_Motor.stl')
     R = rpy_matrix(*PAN_RPY) @ align_z_to(PAN_AXIS)
     motor.vertices = (motor.vertices - PAN_XYZ) @ R  # (v−p)·R == Rᵀ(v−p) rowwise
     export(motor, 'sts3215', MOTOR_RGBA)
